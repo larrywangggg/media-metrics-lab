@@ -69,7 +69,28 @@ The following are **not part of the MVP**, but may be added later:
 - Storage: Postgre  
 - Export: CSV  
 
-
+# Planned structure
+```
+media-metrics-lab/
+|-- backend/
+|   |-- app/
+|   |   |-- main.py
+|   |   |-- core/      # config, logging, security
+|   |   |-- api/       # routers
+|   |   |-- schemas/   # pydantic models
+|   |   |-- models/    # sqlalchemy models
+|   |   |-- services/  # business logic (fetching, parsing)
+|   |   |-- db/        # session, migrations
+|   |   `-- workers/   # background tasks (optional)
+|   |-- tests/
+|   |-- pyproject.toml
+|   |-- Dockerfile
+|   `-- docker-compose.yml
+|-- frontend/
+|   |-- (Next.js or simple Vite)
+|   `-- README.md
+`-- README.md
+```
 
 ## Project Status
 
