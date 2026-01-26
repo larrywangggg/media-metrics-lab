@@ -69,6 +69,24 @@ The following are **not part of the MVP**, but may be added later:
 - Storage: Postgre  
 - Export: CSV  
 
+## Run Services (Local)
+
+Open two terminals and run:
+
+### Backend
+```bash
+cd backend
+uv sync
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
 # Planned structure
 ```
 media-metrics-lab/
@@ -97,4 +115,3 @@ media-metrics-lab/
 - Repository initialised
 - MVP scope defined and frozen
 - Implementation in progress
-
