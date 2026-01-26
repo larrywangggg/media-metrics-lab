@@ -1,7 +1,2 @@
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+# Entry-point module so we can keep running `uvicorn main:app`.
+from app.main import app
