@@ -1,8 +1,6 @@
 from fastapi import APIRouter
+from app.api.jobs import router as jobs_router
 
 router = APIRouter()
 
-
-@router.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])

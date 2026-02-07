@@ -8,6 +8,8 @@ requires-python = ">=3.14"
 dependencies = [
   "alembic>=1.18.3",
   "fastapi>=0.111.0",
+  "openpyxl>=3.1",
   "psycopg[binary]>=3.3.2",
+  "python-multipart>=0.0.22",
   "uvicorn[standard]>=0.29.0",
 ]
