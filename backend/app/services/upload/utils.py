@@ -46,7 +46,9 @@ def guard_file(file: UploadFile) -> None:
     if file is None:
         raise ValueError("No file uploaded.")
     
-    f = file.file
+    f = file.file # UploadFile is a FastAPI wrapper; `file.file` is the underlying file-like.
+                  # binary stream that supports seek() and tell().
+
     try:
         pos = f.tell() #store current position
         f.seek(0, os.SEEK_END) #seek to end to get size
@@ -55,6 +57,7 @@ def guard_file(file: UploadFile) -> None:
         if size > MAX_FILE_SIZE:
             raise ValueError(f"File size exceeds maximum limit of {MAX_FILE_SIZE} bytes.")
     except Exception:
-        return
+         # best-effort; ignore if not seekable
+        return 
    
         
