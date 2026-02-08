@@ -87,6 +87,18 @@ npm install
 npm run dev
 ```
 
+## Tests
+
+### Overview
+Backend tests use `pytest` to validate upload parsing (CSV/XLSX) and API behavior.
+
+### Run
+```bash
+cd backend
+uv sync
+PYTHONPATH=. uv run pytest -q
+```
+
 # Planned structure
 ```
 media-metrics-lab/

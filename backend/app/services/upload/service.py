@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, Any, Dict
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from app.services.upload.utils import infer_extension, looks_like_csv, looks_like_xlsx, normalise_cell, build_header_map, guard_file
 from app.services.upload.types import ParsedRow
@@ -40,6 +40,14 @@ def parse_upload(file: UploadFile) -> Dict[str, Any]:
     filename = (file.filename or "").strip()
     ext = infer_extension(filename)
     
+    if ext and ext not in {".csv", ".xlsx"}: # known but unsupported extension
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "Unsupported file type. Please upload CSV or XLSX. "
+                f"Got filename='{filename}', content_type='{file.content_type}'."
+            ),
+        )
     if ext == ".csv":
         raw_rows = read_csv_rows(file)
     elif ext == ".xlsx":
@@ -50,10 +58,13 @@ def parse_upload(file: UploadFile) -> Dict[str, Any]:
             raw_rows = read_csv_rows(file)
         elif looks_like_xlsx(file.content_type):
             raw_rows = read_xlsx_rows(file)
-        else:
-            raise ValueError(
-                f"Unsupported file type. Please upload CSV or XLSX. "
-                f"Got filename='{filename}', content_type='{file.content_type}'."
+        else: # unable to determine file type
+            raise HTTPException( 
+                status_code=415,
+                detail=(
+                    "Unsupported file type. Please upload CSV or XLSX. "
+                    f"Got filename='{filename}', content_type='{file.content_type}'."
+                ),
             )
             
     parsed: List[ParsedRow] = []
@@ -65,14 +76,14 @@ def parse_upload(file: UploadFile) -> Dict[str, Any]:
         
         parsed.append(
             ParsedRow(
-            row_number=i,
+            row_index=i,
             platform=platform,
             url=url,
-            errors_messages=errors,)
+            error_messages=errors,)
             )
     
     total_rows = len(parsed)
-    valid_rows = sum(1 for r in parsed if not r.errors_messages) 
+    valid_rows = sum(1 for r in parsed if not r.error_messages) 
     invalid_rows = total_rows - valid_rows
     
     return {
