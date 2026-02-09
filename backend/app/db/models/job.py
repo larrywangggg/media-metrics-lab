@@ -14,9 +14,9 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=datetime.utcnow, nullable=False)
     
-    total_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    processed_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_rows: Mapped[int | None] = mapped_column(Integer, nullable=False, default=0)
+    processed_rows: Mapped[int | None] = mapped_column(Integer, nullable=False, default=0)
 
     # Define your columns and relationships here    
