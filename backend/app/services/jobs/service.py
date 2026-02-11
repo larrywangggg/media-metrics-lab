@@ -73,7 +73,7 @@ def process_job(db: Session, job_id: uuid.UUID) -> Dict[str, int]:
     failed_rows = 0
     for row in results:
         fetch_result = get_fetcher(row.platform).fetch(row.url)
-        if fetch_result.ok:
+        if fetch_result["ok"]:
             row.title = fetch_result["title"]
             row.views = fetch_result["views"]
             row.likes = fetch_result["likes"]
