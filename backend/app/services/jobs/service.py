@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.db.models import Job, Result
+from app.db.session import SessionLocal
 from app.services.upload import parse_upload
 from app.services.fetchers import get_fetcher
 
@@ -94,26 +95,70 @@ def process_job(db: Session, job_id: uuid.UUID) -> Dict[str, int]:
     }
     
 
-def run_job(db: Session, job_id: uuid.UUID) -> Dict[str, Any]:
-    """Manual endpoint adapter: thin wrapper around process_job."""
+# def run_job(db: Session, job_id: uuid.UUID) -> Dict[str, Any]:
+#     """Manual endpoint adapter: thin wrapper around process_job."""
+#     job = db.get(Job, job_id)
+#     if not job:
+#         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    
+#     job.status = "running"
+#     db.flush() # persist the status change before processing
+    
+#     summary = process_job(db, job_id)
+#     job.processed_rows = summary["processed_rows"]
+#     job.status = "completed"
+#     db.commit() # commit the transaction to persist all changes
+    
+#     return {
+#         "job_id": str(job.id),
+#         "status": job.status,
+#         "total_rows": job.total_rows,
+#         "processed_rows": summary["processed_rows"],
+#         "success_rows": summary["success_rows"],
+#         "failed_rows": summary["failed_rows"],
+#     }
+    
+def mark_job_running(db: Session, job_id: uuid.UUID) -> Dict[str,Any]:
+    """Validate and mark a job as running before async processing."""
     job = db.get(Job, job_id)
     if not job:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise HTTPException(status_code=404, detail=f"Job not found:{job_id}")
+    
+    if job.status == "running":
+        raise HTTPException(status_code=409, detail=f"Job is already running:{job_id}")
+    
+    if job.status in {"completed", "failed"}:
+        raise HTTPException(status_code=409, detail=f"Job is already finished:{job_id}")
     
     job.status = "running"
-    db.flush() # persist the status change before processing
-    
-    summary = process_job(db, job_id)
-    job.processed_rows = summary["processed_rows"]
-    job.status = "completed"
-    db.commit() # commit the transaction to persist all changes
+    db.commit()
     
     return {
         "job_id": str(job.id),
         "status": job.status,
-        "total_rows": job.total_rows,
-        "processed_rows": summary["processed_rows"],
-        "success_rows": summary["success_rows"],
-        "failed_rows": summary["failed_rows"],
+        "message": "Job accepted and running in backgoround.",
     }
     
+    
+def run_job_in_background(job_id: uuid.UUID) -> None:
+    """Background worker entrypoint with its own DB session"""
+    db = SessionLocal()
+    try:
+        job = db.get(Job, job_id)
+        if not job:
+            return
+        summary = process_job(db, job_id)
+        job.processed = "completed"
+        job.processed_rows = summary["processed_rows"]
+        job.status = "completed"
+        db.commit
+    except Exception:
+        db.rollback()
+        job = db.get(Job, job_id)
+        if job:
+            job.status = "failed"
+            db.commit()
+            
+    finally:
+        db.close()
+        
