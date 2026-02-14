@@ -1,10 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.db.session import get_db
 from app.services.jobs.service import creat_job_from_upload, mark_job_running, run_job_in_background
 from app.services.jobs.queries import list_job_results, list_jobs, get_job_detail
+from app.services.jobs.export import export_job_results_csv
 
 router = APIRouter()
 
@@ -58,3 +60,14 @@ def get_results(
     if not data:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
     return data
+
+
+@router.get("/{job_id}/export.csv",response_class=StreamingResponse)
+def export_csv(job_id: UUID, db: Session = Depends(get_db)):
+    try:
+        return export_job_results_csv(db, job_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
