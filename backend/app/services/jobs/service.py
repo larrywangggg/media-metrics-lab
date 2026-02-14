@@ -11,7 +11,7 @@ from app.services.fetchers import get_fetcher
 
 import uuid
 from fastapi import HTTPException
-
+import time
 
 
 def creat_job_from_upload(db: Session, file) -> Dict[str, Any]:
@@ -88,6 +88,7 @@ def process_job(db: Session, job_id: uuid.UUID) -> Dict[str, int]:
             row.error_message = fetch_result["error_message"]
             failed_rows += 1
     
+    db.commit()
     return {
         "processed_rows": len(results),
         "success_rows": success_rows,
@@ -136,7 +137,7 @@ def mark_job_running(db: Session, job_id: uuid.UUID) -> Dict[str,Any]:
     return {
         "job_id": str(job.id),
         "status": job.status,
-        "message": "Job accepted and running in backgoround.",
+        "message": "Job accepted and running in background.",
     }
     
     
@@ -148,10 +149,9 @@ def run_job_in_background(job_id: uuid.UUID) -> None:
         if not job:
             return
         summary = process_job(db, job_id)
-        job.processed = "completed"
         job.processed_rows = summary["processed_rows"]
         job.status = "completed"
-        db.commit
+        db.commit()
     except Exception:
         db.rollback()
         job = db.get(Job, job_id)
