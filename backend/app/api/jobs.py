@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.db.session import get_db
 from app.services.jobs.service import creat_job_from_upload, mark_job_running, run_job_in_background
+from app.services.jobs.queries import list_job_results, list_jobs, get_job_detail
 
 router = APIRouter()
 
@@ -29,3 +30,31 @@ def run(job_id: UUID, background_tasks: BackgroundTasks, db: Session = Depends(g
     except Exception as e:
         db.rollback() # rollback the transaction in case of any exception to avoid partial commits
         raise HTTPException(status_code=500, detail=str(e)) # return a 500 Internal
+    
+    
+    
+@router.get("")
+def get_jobs(limit: int=20, offset: int=0, db: Session = Depends(get_db)):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    return list_jobs(db, limit=limit, offset=offset)
+
+@router.get("/{job_id}")
+def get_job(job_id: UUID, db: Session = Depends(get_db)):
+    data = get_job_detail(db, job_id=job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    return data
+
+@router.get("/{job_id}/results")
+def get_results(
+    job_id: UUID,
+    limit: int=50,
+    offset: int=0,
+    db: Session=Depends(get_db)):
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+    data = list_job_results(db, job_id=job_id, limit=limit, offset=offset)
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    return data
