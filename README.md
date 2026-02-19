@@ -99,26 +99,40 @@ uv sync
 PYTHONPATH=. uv run pytest -q
 ```
 
-# Planned structure
+## Planned structure (updated to current architecture)
 ```
 media-metrics-lab/
 |-- backend/
+|   |-- main.py
 |   |-- app/
 |   |   |-- main.py
-|   |   |-- core/      # config, logging, security
-|   |   |-- api/       # routers
-|   |   |-- schemas/   # pydantic models
-|   |   |-- models/    # sqlalchemy models
-|   |   |-- services/  # business logic (fetching, parsing)
-|   |   |-- db/        # session, migrations
-|   |   `-- workers/   # background tasks (optional)
-|   |-- tests/
+|   |   |-- core/                  # config, logging
+|   |   |-- api/                   # routers and endpoints
+|   |   |-- db/
+|   |   |   |-- session.py
+|   |   |   |-- base.py
+|   |   |   `-- models/            # Job / Result models
+|   |   `-- services/
+|   |       |-- upload/            # file parsing + validation
+|   |       |-- jobs/              # job workflow + export
+|   |       `-- fetchers/          # platform metric fetchers
+|   |-- alembic/
+|   |   `-- versions/
+|   |-- test/
+|   |   |-- test_upload_parsing.py
+|   |   `-- fixtures/upload/
 |   |-- pyproject.toml
-|   |-- Dockerfile
-|   `-- docker-compose.yml
+|   |-- uv.lock
+|   `-- alembic.ini
 |-- frontend/
-|   |-- (Next.js or simple Vite)
-|   `-- README.md
+|   |-- app/
+|   |   |-- layout.tsx
+|   |   |-- page.tsx
+|   |   `-- globals.css
+|   |-- public/
+|   |-- package.json
+|   |-- next.config.ts
+|   `-- tsconfig.json
 `-- README.md
 ```
 
