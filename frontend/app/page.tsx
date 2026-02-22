@@ -1,15 +1,9 @@
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+export default function Page() {
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold">
-        Media Metrics Lab
-      </h1>
-      <p className="mt-4 text-gray-600">
-        Frontend MVP
-      </p>
-    </main>
-  )
+    <div className="p-10">
+      <Button>Shadcn Button</Button>
+    </div>
+  );
 }
-
