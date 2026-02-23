@@ -15,6 +15,27 @@ The current implementation focuses on a **narrow, reliable MVP** to establish a 
 Features beyond the MVP (advanced analytics, richer data models, automation, and integrations) are intentionally deferred.
 
 
+## MVP Milestone
+
+- Status: **Completed**
+- Scope: **12 / 12 MVP issues closed** (as of **2026-02-23**)
+- Outcome: end-to-end workflow is available (`upload -> create job -> run -> list/detail/results -> export CSV`)
+
+### Delivered MVP items (12/12)
+- Initialise monorepo + basic tooling
+- Backend: project structure + configuration
+- Backend: PostgreSQL setup + Alembic migrations
+- Backend: define database models (Job + Result)
+- Backend: file upload endpoint + CSV/XLSX parsing
+- Backend: create job + persist queued result rows
+- Backend: fetcher service interface (stub-first)
+- Backend: job runner (background processing)
+- Backend: job query APIs (list + detail + results)
+- Backend: export results as CSV
+- Frontend (Next.js): upload page + create job
+- Frontend (Next.js): job list + job detail + results table + export
+
+
 
 ## Current MVP Scope
 
@@ -66,7 +87,7 @@ The following are **not part of the MVP**, but may be added later:
 
 - Backend: FastAPI  
 - Frontend: Next.js  
-- Storage: Postgre  
+- Storage: PostgreSQL  
 - Export: CSV  
 
 ## Run Services (Local)
@@ -90,7 +111,7 @@ npm run dev
 ## Tests
 
 ### Overview
-Backend tests use `pytest` to validate upload parsing (CSV/XLSX) and API behavior.
+Backend tests use `pytest`, currently focused on upload parsing (CSV/XLSX).
 
 ### Run
 ```bash
@@ -99,7 +120,7 @@ uv sync
 PYTHONPATH=. uv run pytest -q
 ```
 
-## Planned structure (updated to current architecture)
+## Current structure
 ```
 media-metrics-lab/
 |-- backend/
@@ -128,7 +149,12 @@ media-metrics-lab/
 |   |-- app/
 |   |   |-- layout.tsx
 |   |   |-- page.tsx
-|   |   `-- globals.css
+|   |   |-- globals.css
+|   |   |-- upload/page.tsx
+|   |   |-- jobs/page.tsx
+|   |   `-- jobs/[job_id]/page.tsx
+|   |-- components/ui/
+|   |-- hooks/
 |   |-- public/
 |   |-- package.json
 |   |-- next.config.ts
@@ -140,4 +166,5 @@ media-metrics-lab/
 
 - Repository initialised
 - MVP scope defined and frozen
-- Implementation in progress
+- MVP implementation completed (12/12 issues)
+- Current phase: stabilization and post-MVP planning
