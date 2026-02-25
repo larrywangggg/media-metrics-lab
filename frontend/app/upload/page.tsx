@@ -9,13 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/config";
 
-function getApiBaseUrl(): string {
-  // Public env var is available in the browser.
-  const url = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!url) return "";
-  return url.replace(/\/+$/, ""); // trim trailing slashes
-}
 
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;

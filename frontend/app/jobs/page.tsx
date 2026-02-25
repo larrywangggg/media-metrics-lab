@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { getApiBaseUrl } from "@/lib/config";
+
 type Job = {
   id: string;
   status?: string | null;
@@ -53,7 +55,7 @@ function fmtDate(iso?: string | null) {
 }
 
 export default function JobsPage() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE;
+  const apiBase = getApiBaseUrl();
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
