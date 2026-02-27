@@ -92,21 +92,58 @@ The following are **not part of the MVP**, but may be added later:
 
 ## Run Services (Local)
 
-Open two terminals and run:
+### 1. Backend setup (env + DB migration)
 
-### Backend
 ```bash
 cd backend
+cp .env.example .env
 uv sync
+uv run alembic upgrade head
 uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### Frontend
+Notes:
+- `backend/.env` must contain a valid `DATABASE_URL` (default in `.env.example`: `postgresql+psycopg://app:app@localhost:5432/mediametrics`).
+- Make sure PostgreSQL is running and that DB exists before `alembic upgrade head`.
+
+### 2. Frontend setup
+
 ```bash
 cd frontend
+echo "NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000" > .env.local
 npm install
-npm run dev
+npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
+
+### 3. Verify services
+
+- Backend: `http://127.0.0.1:8000`
+- Frontend: `http://127.0.0.1:3000`
+
+If you use `127.0.0.1:3000` for frontend, add this in `backend/.env` to avoid CORS issues:
+
+```env
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+## End-to-End Smoke Run (youtube_smoke.csv)
+
+Fixture file added for reproducible local run:
+
+- `backend/test/fixtures/youtube_smoke/youtube_smoke.csv`
+
+Follow these exact steps:
+
+1. Open `http://127.0.0.1:3000/upload`.
+2. Upload `backend/test/fixtures/youtube_smoke/youtube_smoke.csv`.
+3. After redirect to `http://127.0.0.1:3000/jobs/[job_id]`, copy the `job_id` from URL.
+4. Open FastAPI docs at `http://127.0.0.1:8000/docs#/jobs/run_jobs__job_id__run_post`.
+5. In `POST /jobs/{job_id}/run`, click `Try it out`, paste `job_id`, then `Execute`.
+6. Confirm response is `202 Accepted` (job status should become `running`).
+7. Go back to `http://127.0.0.1:3000/jobs/[job_id]` and refresh the page until status is `completed` and progress reaches `10/10`.
+8. Click `Export CSV` and confirm the browser downloads `job_<job_id>_results.csv`.
+
+**Expected result**: job detail page can fetch processed rows successfully and CSV export works.
 
 ## Tests
 
@@ -141,7 +178,7 @@ media-metrics-lab/
 |   |   `-- versions/
 |   |-- test/
 |   |   |-- test_upload_parsing.py
-|   |   `-- fixtures/upload/
+|   |   `-- fixtures/
 |   |-- pyproject.toml
 |   |-- uv.lock
 |   `-- alembic.ini
