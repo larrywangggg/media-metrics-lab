@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -71,3 +73,16 @@ def export_csv(job_id: UUID, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/meta", tags=["system"])
+def meta():
+    """
+    Return runtime metadata that the frontend can display.
+    This is deliberately future-proof: UI should not depend on 'stub' existing.
+    """
+    return {
+        "fetchers": {
+            "youtube": os.getenv("YOUTUBE_FETCHER_IMPL", "unknown"),
+        }
+    }

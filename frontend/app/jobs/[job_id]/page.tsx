@@ -21,53 +21,99 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
+import { getApiBaseUrl } from "@/lib/config";
+
+type MetaResponse = {
+  fetchers?: {
+    youtube?: string;
+    [k: string]: unknown;
+  };
+};
+
 type JobDetail = {
   id?: string;
   job_id?: string;
   status?: string;
   created_at?: string;
   filename?: string;
+
+  total_rows?: number | null;
+  processed_rows?: number | null;
+
   [k: string]: unknown;
 };
 
-type ResultRow = Record<string, unknown>;
+type ResultRow = {
+  status?: string | null; // "success" | "failed" | "queued" ...
+  error_message?: string | null;
 
-/** Normalise backend payload into a plain array of result rows. */
+  platform?: string | null;
+  url?: string | null;
+  title?: string | null;
+
+  views?: number | null;
+  likes?: number | null;
+  comments?: number | null;
+  published_at?: string | null;
+  engagement_rate?: number | null;
+
+  [k: string]: unknown;
+};
+
 function normaliseResults(payload: unknown): ResultRow[] {
   if (Array.isArray(payload)) return payload as ResultRow[];
 
   if (payload && typeof payload === "object") {
     const obj = payload as Record<string, unknown>;
-    const candidates = [
-      obj.items,
-      obj.results,
-      obj.data,
-      obj.rows,
-    ];
-
+    const candidates = [obj.items, obj.results, obj.data, obj.rows];
     for (const c of candidates) {
       if (Array.isArray(c)) return c as ResultRow[];
     }
   }
-
   return [];
 }
 
-/** Get API base URL from env, with a safe default for local dev. */
-function getApiBase(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+function statusBadgeClass(status: string) {
+  switch (status) {
+    case "success":
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border-green-200";
+    case "failed":
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700 border-red-200";
+    case "running":
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border-blue-200";
+    case "queued":
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-50 text-slate-700 border-slate-200";
+    case "completed":
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border-green-200";
+    default:
+      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-50 text-slate-700 border-slate-200";
+  }
+}
+
+function rowTintClass(status: string) {
+  if (status === "failed") return "bg-red-50/40";
+  if (status === "success") return "bg-green-50/30";
+  return "";
+}
+
+function safeString(v: unknown) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return JSON.stringify(v);
 }
 
 export default function JobDetailPage() {
   const params = useParams<{ job_id: string }>();
   const jobId = params.job_id;
 
+  const apiBase = React.useMemo(() => getApiBaseUrl(), []);
+
+  const [meta, setMeta] = React.useState<MetaResponse | null>(null);
   const [job, setJob] = React.useState<JobDetail | null>(null);
   const [results, setResults] = React.useState<ResultRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
-  const apiBase = React.useMemo(() => getApiBase(), []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -77,17 +123,24 @@ export default function JobDetailPage() {
         setLoading(true);
         setError(null);
 
-        // Fetch job detail
-        const jobRes = await fetch(`${apiBase}/jobs/${jobId}`);
+        // Fetch meta + job + results in parallel
+        const [metaRes, jobRes, resultsRes] = await Promise.all([
+          fetch(`${apiBase}/meta`).catch(() => null),
+          fetch(`${apiBase}/jobs/${jobId}`),
+          fetch(`${apiBase}/jobs/${jobId}/results?limit=200&offset=0`),
+        ]);
+
+        // Meta is optional (UI still works without it)
+        if (metaRes && metaRes.ok) {
+          const metaJson = (await metaRes.json()) as MetaResponse;
+          if (!cancelled) setMeta(metaJson);
+        }
+
         if (!jobRes.ok) {
           throw new Error(`Failed to fetch job detail: ${jobRes.status}`);
         }
         const jobJson = (await jobRes.json()) as JobDetail;
 
-        // Fetch results (increase limit if you want to display more)
-        const resultsRes = await fetch(
-          `${apiBase}/jobs/${jobId}/results?limit=200&offset=0`
-        );
         if (!resultsRes.ok) {
           throw new Error(`Failed to fetch results: ${resultsRes.status}`);
         }
@@ -112,27 +165,31 @@ export default function JobDetailPage() {
     };
   }, [apiBase, jobId]);
 
-  // Build columns from actual rows (defensive: results may be empty)
   const columns = React.useMemo(() => {
+    // Prefer a stable, product-like column order:
+    const preferred = [
+      "status",
+      "platform",
+      "url",
+      "title",
+      "views",
+      "likes",
+      "comments",
+      "published_at",
+      "engagement_rate",
+      "error_message",
+    ];
+
     const keys = new Set<string>();
+    for (const r of results) Object.keys(r).forEach((k) => keys.add(k));
 
-    // results must be an array here; otherwise normaliseResults() is wrong.
-    for (const r of results) {
-      Object.keys(r).forEach((k) => keys.add(k));
-    }
-
-    const ordered = Array.from(keys);
-
-    // Put common columns first if present
-    const preferred = ["row_index", "success", "error"];
     const head = preferred.filter((k) => keys.has(k));
-    const tail = ordered.filter((k) => !head.includes(k));
+    const tail = Array.from(keys).filter((k) => !head.includes(k));
 
     return [...head, ...tail];
   }, [results]);
 
   async function onExportCsv() {
-    // Simple approach: open the export endpoint directly to trigger download
     window.location.href = `${apiBase}/jobs/${jobId}/export.csv`;
   }
 
@@ -144,6 +201,11 @@ export default function JobDetailPage() {
     );
   }
 
+  const jobStatus = String(job?.status ?? "unknown");
+  const processed = job?.processed_rows ?? null;
+  const total = job?.total_rows ?? null;
+  const youtubeImpl = meta?.fetchers?.youtube;
+
   return (
     <div className="p-10">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -152,18 +214,38 @@ export default function JobDetailPage() {
             <CardTitle>Job Detail</CardTitle>
             <CardDescription>Job ID: {jobId}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {/* Display a few known fields if they exist */}
-            <div>
-              <span className="text-muted-foreground">Status: </span>
-              <span>{String(job?.status ?? "unknown")}</span>
+
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex flex-wrap gap-3 items-center">
+              <div>
+                <span className="text-muted-foreground mr-2">Status</span>
+                <span className={statusBadgeClass(jobStatus)}>{jobStatus}</span>
+              </div>
+
+              {(processed !== null || total !== null) && (
+                <div>
+                  <span className="text-muted-foreground mr-2">Progress</span>
+                  <span className="font-medium">
+                    {(processed ?? 0)}/{(total ?? results.length)}
+                  </span>
+                </div>
+              )}
+
+              {youtubeImpl && (
+                <div>
+                  <span className="text-muted-foreground mr-2">YouTube fetcher</span>
+                  <span className="font-medium">{youtubeImpl}</span>
+                </div>
+              )}
             </div>
+
             {job?.filename && (
               <div>
                 <span className="text-muted-foreground">File: </span>
                 <span>{String(job.filename)}</span>
               </div>
             )}
+
             {job?.created_at && (
               <div>
                 <span className="text-muted-foreground">Created: </span>
@@ -171,14 +253,12 @@ export default function JobDetailPage() {
               </div>
             )}
 
-            <div className="pt-2">
+            <div className="pt-2 flex gap-2">
               <Button onClick={onExportCsv}>Export CSV</Button>
             </div>
 
             {error && (
-              <div className="pt-3 text-red-600">
-                Error: {error}
-              </div>
+              <div className="pt-3 text-red-600">Error: {error}</div>
             )}
           </CardContent>
         </Card>
@@ -186,10 +266,9 @@ export default function JobDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Results</CardTitle>
-            <CardDescription>
-              Showing {results.length} row(s).
-            </CardDescription>
+            <CardDescription>Showing {results.length} row(s).</CardDescription>
           </CardHeader>
+
           <CardContent>
             {results.length === 0 ? (
               <div className="text-sm text-muted-foreground">
@@ -205,18 +284,53 @@ export default function JobDetailPage() {
                       ))}
                     </TableRow>
                   </TableHeader>
+
                   <TableBody>
-                    {results.map((row, idx) => (
-                      <TableRow key={idx}>
-                        {columns.map((c) => (
-                          <TableCell key={c}>
-                            {row[c] === null || row[c] === undefined
-                              ? ""
-                              : String(row[c])}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
+                    {results.map((row, idx) => {
+                      const rowStatus = String(row.status ?? "");
+                      return (
+                        <TableRow key={idx} className={rowTintClass(rowStatus)}>
+                          {columns.map((c) => {
+                            if (c === "status") {
+                              const s = String(row.status ?? "");
+                              return (
+                                <TableCell key={c}>
+                                  {s ? (
+                                    <span className={statusBadgeClass(s)}>{s}</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </TableCell>
+                              );
+                            }
+
+                            if (c === "error_message") {
+                              const msg = row.error_message;
+                              if (!msg) return <TableCell key={c} />;
+
+                              // Truncate to keep layout stable, show full message on hover
+                              return (
+                                <TableCell key={c} className="max-w-[360px]">
+                                  <span
+                                    className="block truncate text-red-700"
+                                    title={msg}
+                                  >
+                                    {msg}
+                                  </span>
+                                </TableCell>
+                              );
+                            }
+
+                            // Default rendering
+                            return (
+                              <TableCell key={c}>
+                                {safeString(row[c])}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
