@@ -74,15 +74,3 @@ def export_csv(job_id: UUID, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
-
-@router.get("/meta", tags=["system"])
-def meta():
-    """
-    Return runtime metadata that the frontend can display.
-    This is deliberately future-proof: UI should not depend on 'stub' existing.
-    """
-    return {
-        "fetchers": {
-            "youtube": os.getenv("YOUTUBE_FETCHER_IMPL", "unknown"),
-        }
-    }

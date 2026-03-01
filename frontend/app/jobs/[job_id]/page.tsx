@@ -125,7 +125,7 @@ export default function JobDetailPage() {
 
         // Fetch meta + job + results in parallel
         const [metaRes, jobRes, resultsRes] = await Promise.all([
-          fetch(`${apiBase}/meta`).catch(() => null),
+          fetch(`${apiBase}/system/meta`).catch(() => null),
           fetch(`${apiBase}/jobs/${jobId}`),
           fetch(`${apiBase}/jobs/${jobId}/results?limit=200&offset=0`),
         ]);
