@@ -90,39 +90,40 @@ const RESULT_COLUMNS: ResultColumn[] = [
   {
     key: "url",
     label: "URL",
-    cellClassName: "max-w-[280px] truncate",
+    cellClassName: "max-w-[180px] whitespace-normal break-all align-top",
   },
   {
     key: "title",
     label: "Title",
-    cellClassName: "max-w-[360px] whitespace-normal",
+    cellClassName: "max-w-[520px] whitespace-normal break-words align-top",
   },
   {
     key: "views",
     label: "Views",
-    headClassName: "text-right",
-    cellClassName: "text-right tabular-nums whitespace-nowrap",
+    headClassName: "text-center",
+    cellClassName: "text-center tabular-nums whitespace-nowrap",
   },
   {
     key: "likes",
     label: "Likes",
-    headClassName: "text-right",
-    cellClassName: "text-right tabular-nums whitespace-nowrap",
+    headClassName: "text-center",
+    cellClassName: "text-center tabular-nums whitespace-nowrap",
   },
   {
     key: "comments",
     label: "Comments",
-    headClassName: "text-right",
-    cellClassName: "text-right tabular-nums whitespace-nowrap",
+    headClassName: "text-center",
+    cellClassName: "text-center tabular-nums whitespace-nowrap",
   },
   {
     key: "published_at",
     label: "Published",
-    cellClassName: "whitespace-nowrap",
+    headClassName: "text-center",
+    cellClassName: "text-center whitespace-nowrap",
   },
   {
     key: "engagement_rate",
-    label: "Engagement Rate",
+    label: "ER%",
     headClassName: "text-right",
     cellClassName: "text-right tabular-nums whitespace-nowrap",
   },
@@ -287,7 +288,7 @@ export default function JobDetailPage() {
   }
 
   if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading...</div>;
+    return <div className="type-helper text-muted-foreground">Loading...</div>;
   }
 
   const jobStatus = String(job?.status ?? "unknown");
@@ -308,10 +309,12 @@ export default function JobDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Job Detail</CardTitle>
-            <CardDescription>Job ID: {jobId}</CardDescription>
+            <CardDescription>
+              Job ID: <span className="type-mono">{jobId}</span>
+            </CardDescription>
           </CardHeader>
 
-          <CardContent className="app-section-stack text-sm">
+          <CardContent className="app-section-stack type-body">
             <div className="flex flex-wrap gap-3 items-center">
               <div>
                 <span className="meta-label">Status</span>
@@ -365,13 +368,13 @@ export default function JobDetailPage() {
 
           <CardContent>
             {displayResults.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
+              <div className="type-helper text-muted-foreground">
                 No results found for this job.
               </div>
             ) : (
               <div className="app-table-shell overflow-auto">
                 <Table>
-                  <TableHeader className="bg-muted/60 [&_th]:h-11 [&_th]:border-b [&_th]:font-semibold [&_th]:text-foreground">
+                  <TableHeader className="bg-muted/60 [&_th]:h-11 [&_th]:border-b [&_th]:font-semibold [&_th]:text-center [&_th]:text-foreground">
                     <TableRow>
                       {RESULT_COLUMNS.map((column) => (
                         <TableHead key={column.key} className={column.headClassName}>

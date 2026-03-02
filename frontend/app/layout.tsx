@@ -31,20 +31,20 @@ export default function RootLayout({
         <div className="min-h-screen bg-background text-foreground">
           <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-              <Link href="/" className="text-sm font-semibold tracking-wide">
+              <Link href="/" className="type-h3">
                 Media Metrics Lab
               </Link>
 
-              <nav className="flex items-center gap-2 text-sm">
+              <nav className="flex items-center gap-2">
                 <Link
                   href="/"
-                  className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  className="type-helper rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Single
                 </Link>
                 <Link
                   href="/bulk"
-                  className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  className="type-helper rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Bulk
                 </Link>

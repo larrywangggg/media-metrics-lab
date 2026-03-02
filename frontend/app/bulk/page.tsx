@@ -99,6 +99,15 @@ function fmtDate(iso?: string | null) {
   return d.toLocaleString();
 }
 
+function shortJobId(id: string): string {
+  const firstSegment = id.split("-")[0];
+  if (firstSegment && firstSegment.length >= 8 && id.includes("-")) {
+    return `${firstSegment.slice(0, 8)}...`;
+  }
+  if (id.length <= 8) return id;
+  return `${id.slice(0, 8)}...`;
+}
+
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
@@ -448,13 +457,10 @@ export default function BulkPage() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle>Recent Jobs</CardTitle>
-            <CardDescription>
-              Showing {startRow}-{endRow} of {jobsTotal} jobs (page {currentPage}/{totalPages}).
-            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {jobsUpdating ? (
-              <span className="text-xs text-muted-foreground">Loading page...</span>
+              <span className="type-helper text-muted-foreground">Loading page...</span>
             ) : null}
             <Button
               variant="outline"
@@ -476,29 +482,31 @@ export default function BulkPage() {
           ) : null}
 
           {showInitialJobsLoading ? (
-            <div className="text-sm text-muted-foreground">Loading jobs...</div>
+            <div className="type-helper text-muted-foreground">Loading jobs...</div>
           ) : jobs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
+            <div className="type-helper text-muted-foreground">
               No jobs yet. Upload your first file above.
             </div>
           ) : (
             <div className={`app-section-stack ${jobsUpdating ? "opacity-70" : ""}`}>
               <div className="app-table-shell overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="[&_th]:text-center">
                     <TableRow>
-                      <TableHead className="w-[320px]">Job ID</TableHead>
+                      <TableHead className="w-[180px]">Job ID</TableHead>
                       <TableHead>File name</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created at</TableHead>
-                      <TableHead className="text-right">Open</TableHead>
+                      <TableHead>Open</TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
                     {jobs.map((job) => (
                       <TableRow key={job.id}>
-                        <TableCell className="font-mono text-xs">{job.id}</TableCell>
+                        <TableCell className="type-mono" title={job.id}>
+                          {shortJobId(job.id)}
+                        </TableCell>
                         <TableCell>{job.filename || "—"}</TableCell>
                         <TableCell>
                           <span className={statusBadgeClass(job.status)}>
@@ -506,7 +514,7 @@ export default function BulkPage() {
                           </span>
                         </TableCell>
                         <TableCell>{fmtDate(job.created_at)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           <Button asChild size="sm" variant="outline">
                             <Link href={`/jobs/${job.id}`}>View</Link>
                           </Button>
@@ -518,7 +526,7 @@ export default function BulkPage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <div className="text-xs text-muted-foreground">
+                <div className="type-helper text-muted-foreground">
                   Showing {startRow}-{endRow} of {jobsTotal} jobs.
                 </div>
 
@@ -531,11 +539,11 @@ export default function BulkPage() {
                   >
                     Previous
                   </Button>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="type-helper text-muted-foreground">
                     Page {currentPage} / {totalPages}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Go to</span>
+                    <span className="type-helper text-muted-foreground">Go to</span>
                     <Input
                       type="number"
                       min={1}
