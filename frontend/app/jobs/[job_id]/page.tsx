@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -194,11 +195,7 @@ export default function JobDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="p-10">
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
 
   const jobStatus = String(job?.status ?? "unknown");
@@ -207,8 +204,15 @@ export default function JobDetailPage() {
   const youtubeImpl = meta?.fetchers?.youtube;
 
   return (
-    <div className="p-10">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Job Detail</h1>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/bulk">Back to Bulk</Link>
+        </Button>
+      </div>
+
+      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Job Detail</CardTitle>

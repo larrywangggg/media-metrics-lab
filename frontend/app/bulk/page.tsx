@@ -1,0 +1,392 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+
+import { getApiBaseUrl } from "@/lib/config";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const JOBS_LIMIT = 20;
+
+type Job = {
+  id: string;
+  filename?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+function normaliseJobs(payload: unknown): Job[] {
+  if (Array.isArray(payload)) return payload as Job[];
+
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items as Job[];
+    if (Array.isArray(obj.data)) return obj.data as Job[];
+    if (Array.isArray(obj.jobs)) return obj.jobs as Job[];
+  }
+
+  return [];
+}
+
+function fmtDate(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return "Something went wrong.";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function extractFastApiDetail(payload: unknown): string {
+  const payloadObj = asRecord(payload);
+  const detail = payloadObj?.detail;
+
+  if (!detail) return "Upload failed.";
+  if (typeof detail === "string") return detail;
+
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (asRecord(d)?.msg as string | undefined) ?? "")
+      .filter(Boolean);
+    if (msgs.length > 0) return msgs.join("; ");
+    return "Upload failed due to validation errors.";
+  }
+
+  try {
+    return JSON.stringify(detail);
+  } catch {
+    return "Upload failed.";
+  }
+}
+
+function extractJobId(payload: unknown): string | null {
+  const payloadObj = asRecord(payload);
+  if (!payloadObj) return null;
+
+  if (typeof payloadObj.job_id === "string") return payloadObj.job_id;
+  if (typeof payloadObj.id === "string") return payloadObj.id;
+
+  const jobObj = asRecord(payloadObj.job);
+  if (typeof jobObj?.id === "string") return jobObj.id;
+  if (typeof jobObj?.job_id === "string") return jobObj.job_id;
+
+  return null;
+}
+
+function statusBadgeClass(status?: string | null) {
+  switch (status) {
+    case "success":
+    case "completed":
+      return "inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700";
+    case "failed":
+      return "inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700";
+    case "running":
+      return "inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700";
+    case "queued":
+      return "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700";
+    default:
+      return "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700";
+  }
+}
+
+function getApiBaseUrlSafe() {
+  try {
+    return { apiBase: getApiBaseUrl(), configError: "" };
+  } catch (e) {
+    return {
+      apiBase: "",
+      configError:
+        e instanceof Error
+          ? e.message
+          : "Missing NEXT_PUBLIC_API_BASE in frontend/.env.local.",
+    };
+  }
+}
+
+export default function BulkPage() {
+  const { apiBase, configError } = React.useMemo(getApiBaseUrlSafe, []);
+
+  const [file, setFile] = React.useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = React.useState(0);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string>("");
+  const [uploadMessage, setUploadMessage] = React.useState<string>("");
+
+  const [jobs, setJobs] = React.useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = React.useState(true);
+  const [jobsError, setJobsError] = React.useState<string>("");
+
+  const fetchJobs = React.useCallback(async () => {
+    setJobsError("");
+
+    if (!apiBase) {
+      setJobs([]);
+      setJobsLoading(false);
+      setJobsError(
+        configError ||
+          "Missing NEXT_PUBLIC_API_BASE in frontend/.env.local. Example: NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000"
+      );
+      return;
+    }
+
+    setJobsLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/jobs?limit=${JOBS_LIMIT}&offset=0`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(
+          `GET /jobs failed: ${res.status} ${res.statusText}${
+            text ? ` — ${text}` : ""
+          }`
+        );
+      }
+
+      const payload = (await res.json()) as unknown;
+      setJobs(normaliseJobs(payload));
+    } catch (e) {
+      setJobs([]);
+      setJobsError(e instanceof Error ? e.message : "Failed to load jobs.");
+    } finally {
+      setJobsLoading(false);
+    }
+  }, [apiBase, configError]);
+
+  React.useEffect(() => {
+    void fetchJobs();
+  }, [fetchJobs]);
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError("");
+    setUploadMessage("");
+    const picked = e.target.files?.[0] ?? null;
+    setFile(picked);
+  };
+
+  const validateFile = (f: File | null): string | null => {
+    if (!f) return "Please choose a CSV or XLSX file.";
+
+    const name = f.name.toLowerCase();
+    const ok = name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls");
+    if (!ok) return "Only .csv, .xlsx, or .xls files are accepted.";
+
+    const maxBytes = 20 * 1024 * 1024;
+    if (f.size > maxBytes) return "File is too large (max 20MB).";
+
+    return null;
+  };
+
+  const onUpload = async () => {
+    setUploadError("");
+    setUploadMessage("");
+
+    if (!apiBase) {
+      setUploadError(
+        configError ||
+          "Missing NEXT_PUBLIC_API_BASE in frontend/.env.local. Example: NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000"
+      );
+      return;
+    }
+
+    const validationError = validateFile(file);
+    if (validationError) {
+      setUploadError(validationError);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file as File);
+
+      const res = await fetch(`${apiBase}/jobs/upload`, {
+        method: "POST",
+        body: form,
+      });
+
+      const payload = (await res.json().catch(() => null)) as unknown;
+
+      if (!res.ok) {
+        const msg = payload
+          ? extractFastApiDetail(payload)
+          : `Upload failed (HTTP ${res.status}).`;
+        setUploadError(msg);
+        return;
+      }
+
+      const jobId = extractJobId(payload);
+      const payloadObj = asRecord(payload);
+      const filename =
+        typeof payloadObj?.filename === "string" ? payloadObj.filename : file?.name;
+      setUploadMessage(
+        jobId
+          ? `Uploaded ${filename}. Job created: ${jobId}.`
+          : `Uploaded ${filename}.`
+      );
+      setFile(null);
+      setFileInputKey((k) => k + 1);
+
+      await fetchJobs();
+    } catch (e) {
+      setUploadError(extractErrorMessage(e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">Bulk Fetch</h1>
+        <p className="text-sm text-muted-foreground">
+          Upload CSV/XLSX files and monitor recent jobs in one place.
+        </p>
+      </div>
+
+      {configError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Configuration error</AlertTitle>
+          <AlertDescription>{configError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+          <CardDescription>
+            Accepted formats: .csv, .xlsx, .xls
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {uploadError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Upload failed</AlertTitle>
+              <AlertDescription>{uploadError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {uploadMessage ? (
+            <Alert className="border-green-200 bg-green-50 text-green-900">
+              <AlertTitle className="text-green-700">Upload successful</AlertTitle>
+              <AlertDescription className="text-green-800">{uploadMessage}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk-file">File</Label>
+            <Input
+              key={fileInputKey}
+              id="bulk-file"
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={onPickFile}
+              disabled={uploading || !apiBase}
+            />
+          </div>
+        </CardContent>
+
+        <CardFooter>
+          <Button onClick={onUpload} disabled={uploading || !apiBase}>
+            {uploading ? "Uploading..." : "Upload"}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div className="space-y-1">
+            <CardTitle>Recent Jobs</CardTitle>
+            <CardDescription>Showing up to {JOBS_LIMIT} recent jobs.</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchJobs()} disabled={jobsLoading}>
+            {jobsLoading ? "Refreshing..." : "Refresh"}
+          </Button>
+        </CardHeader>
+
+        <CardContent>
+          {jobsError ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Failed to load jobs</AlertTitle>
+              <AlertDescription>{jobsError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {jobsLoading ? (
+            <div className="text-sm text-muted-foreground">Loading jobs...</div>
+          ) : jobs.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No jobs yet. Upload your first file above.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[320px]">Job ID</TableHead>
+                    <TableHead>File name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created at</TableHead>
+                    <TableHead className="text-right">Open</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {jobs.map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell className="font-mono text-xs">{job.id}</TableCell>
+                      <TableCell>{job.filename || "—"}</TableCell>
+                      <TableCell>
+                        <span className={statusBadgeClass(job.status)}>
+                          {job.status || "unknown"}
+                        </span>
+                      </TableCell>
+                      <TableCell>{fmtDate(job.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/jobs/${job.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
