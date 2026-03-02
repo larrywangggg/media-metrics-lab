@@ -11,10 +11,10 @@ import {
 
 export default function SingleHomePage() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Single Link Fetch</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="app-page-stack">
+      <div className="app-heading-stack">
+        <h1 className="app-heading-xl">Single Link Fetch</h1>
+        <p className="app-subtext">
           This page will be the default single-link workflow.
         </p>
       </div>

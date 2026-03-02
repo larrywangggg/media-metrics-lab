@@ -150,15 +150,15 @@ function statusBadgeClass(status?: string | null) {
   switch (status) {
     case "success":
     case "completed":
-      return "inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700";
+      return "status-pill status-pill--success";
     case "failed":
-      return "inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700";
+      return "status-pill status-pill--error";
     case "running":
-      return "inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700";
+      return "status-pill status-pill--info";
     case "queued":
-      return "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700";
+      return "status-pill status-pill--neutral";
     default:
-      return "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700";
+      return "status-pill status-pill--neutral";
   }
 }
 
@@ -386,10 +386,10 @@ export default function BulkPage() {
   const showInitialJobsLoading = jobsLoading && jobs.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Bulk Fetch</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="app-page-stack">
+      <div className="app-heading-stack">
+        <h1 className="app-heading-xl">Bulk Fetch</h1>
+        <p className="app-subtext">
           Upload CSV/XLSX files and monitor recent jobs in one place.
         </p>
       </div>
@@ -418,9 +418,9 @@ export default function BulkPage() {
           ) : null}
 
           {uploadMessage ? (
-            <Alert className="border-green-200 bg-green-50 text-green-900">
-              <AlertTitle className="text-green-700">Upload successful</AlertTitle>
-              <AlertDescription className="text-green-800">{uploadMessage}</AlertDescription>
+            <Alert className="alert-success">
+              <AlertTitle className="alert-success-title">Upload successful</AlertTitle>
+              <AlertDescription className="alert-success-desc">{uploadMessage}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -482,8 +482,8 @@ export default function BulkPage() {
               No jobs yet. Upload your first file above.
             </div>
           ) : (
-            <div className={`space-y-4 ${jobsUpdating ? "opacity-70" : ""}`}>
-              <div className="overflow-x-auto">
+            <div className={`app-section-stack ${jobsUpdating ? "opacity-70" : ""}`}>
+              <div className="app-table-shell overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

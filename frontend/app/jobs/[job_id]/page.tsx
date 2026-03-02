@@ -77,23 +77,23 @@ function normaliseResults(payload: unknown): ResultRow[] {
 function statusBadgeClass(status: string) {
   switch (status) {
     case "success":
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border-green-200";
+      return "status-pill status-pill--success";
     case "failed":
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700 border-red-200";
+      return "status-pill status-pill--error";
     case "running":
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border-blue-200";
+      return "status-pill status-pill--info";
     case "queued":
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-50 text-slate-700 border-slate-200";
+      return "status-pill status-pill--neutral";
     case "completed":
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border-green-200";
+      return "status-pill status-pill--success";
     default:
-      return "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-slate-50 text-slate-700 border-slate-200";
+      return "status-pill status-pill--neutral";
   }
 }
 
 function rowTintClass(status: string) {
-  if (status === "failed") return "bg-red-50/40";
-  if (status === "success") return "bg-green-50/30";
+  if (status === "failed") return "result-row--error";
+  if (status === "success") return "result-row--success";
   return "";
 }
 
@@ -204,31 +204,31 @@ export default function JobDetailPage() {
   const youtubeImpl = meta?.fetchers?.youtube;
 
   return (
-    <div className="space-y-6">
+    <div className="app-page-stack">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Job Detail</h1>
+        <h1 className="app-heading-lg">Job Detail</h1>
         <Button asChild variant="outline" size="sm">
           <Link href="/bulk">Back to Bulk</Link>
         </Button>
       </div>
 
-      <div className="space-y-6">
+      <div className="app-page-stack">
         <Card>
           <CardHeader>
             <CardTitle>Job Detail</CardTitle>
             <CardDescription>Job ID: {jobId}</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="app-section-stack text-sm">
             <div className="flex flex-wrap gap-3 items-center">
               <div>
-                <span className="text-muted-foreground mr-2">Status</span>
+                <span className="meta-label">Status</span>
                 <span className={statusBadgeClass(jobStatus)}>{jobStatus}</span>
               </div>
 
               {(processed !== null || total !== null) && (
                 <div>
-                  <span className="text-muted-foreground mr-2">Progress</span>
+                  <span className="meta-label">Progress</span>
                   <span className="font-medium">
                     {(processed ?? 0)}/{(total ?? results.length)}
                   </span>
@@ -237,7 +237,7 @@ export default function JobDetailPage() {
 
               {youtubeImpl && (
                 <div>
-                  <span className="text-muted-foreground mr-2">YouTube fetcher</span>
+                  <span className="meta-label">YouTube fetcher</span>
                   <span className="font-medium">{youtubeImpl}</span>
                 </div>
               )}
@@ -245,14 +245,14 @@ export default function JobDetailPage() {
 
             {job?.filename && (
               <div>
-                <span className="text-muted-foreground">File: </span>
+                <span className="meta-label">File:</span>
                 <span>{String(job.filename)}</span>
               </div>
             )}
 
             {job?.created_at && (
               <div>
-                <span className="text-muted-foreground">Created: </span>
+                <span className="meta-label">Created:</span>
                 <span>{String(job.created_at)}</span>
               </div>
             )}
@@ -261,9 +261,7 @@ export default function JobDetailPage() {
               <Button onClick={onExportCsv}>Export CSV</Button>
             </div>
 
-            {error && (
-              <div className="pt-3 text-red-600">Error: {error}</div>
-            )}
+            {error && <div className="pt-3 status-text-error">Error: {error}</div>}
           </CardContent>
         </Card>
 
@@ -279,7 +277,7 @@ export default function JobDetailPage() {
                 No results found for this job.
               </div>
             ) : (
-              <div className="overflow-auto border rounded-md">
+              <div className="app-table-shell overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -316,7 +314,7 @@ export default function JobDetailPage() {
                               return (
                                 <TableCell key={c} className="max-w-[360px]">
                                   <span
-                                    className="block truncate text-red-700"
+                                    className="status-text-error block truncate"
                                     title={msg}
                                   >
                                     {msg}
