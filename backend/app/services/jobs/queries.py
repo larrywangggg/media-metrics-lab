@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Job, Result
@@ -11,6 +11,7 @@ from app.db.models import Job, Result
 def _job_to_dict(job: Job) -> Dict[str, Any]:
     return {
         "id": str(job.id),
+        "filename": job.source_filename,
         "status": job.status,
         "total_rows": job.total_rows,
         "processed_rows": job.processed_rows,
@@ -35,6 +36,7 @@ def _result_to_dict(r: Result) -> Dict[str, Any]:
     }
     
 def list_jobs(db: Session, *, limit: int=20, offset: int=0) -> Dict[str, Any]:
+    total = db.scalar(select(func.count()).select_from(Job)) or 0
     stmt = (
         select(Job)
         .order_by(Job.created_at.desc())
@@ -42,10 +44,13 @@ def list_jobs(db: Session, *, limit: int=20, offset: int=0) -> Dict[str, Any]:
         .limit(limit)
     )
     jobs: List[Job] = db.scalars(stmt).all()
+    items = [_job_to_dict(j) for j in jobs]
     return {
         "limit": limit,
         "offset": offset,
-        "items": [_job_to_dict(j) for j in jobs],
+        "total": total,
+        "has_more": offset + len(items) < total,
+        "items": items,
     }
     
 

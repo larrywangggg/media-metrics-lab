@@ -15,6 +15,7 @@ import time
 
 
 def creat_job_from_upload(db: Session, file) -> Dict[str, Any]:
+    source_filename = (file.filename or "").strip() or None
     parsed = parse_upload(file) # This should return a dict with keys 'total_rows' and 'data'
     
     rows: List[dict] = parsed["rows"]
@@ -23,6 +24,7 @@ def creat_job_from_upload(db: Session, file) -> Dict[str, Any]:
     
     job = Job(
         status="queued",
+        source_filename=source_filename,
         total_rows=len(valid_rows),
         processed_rows=0,
     )
@@ -49,6 +51,7 @@ def creat_job_from_upload(db: Session, file) -> Dict[str, Any]:
     
     return {
         "job_id": str(job.id),
+        "filename": job.source_filename,
         "total_rows": parsed["total_rows"],
         "valid_rows": len(valid_rows),
         "invalid_rows": len(invalid_rows),
