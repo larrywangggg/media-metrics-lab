@@ -10,7 +10,7 @@ from app.main import app
 
 client = TestClient(app)
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures" / "upload"
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "validation"
 
 
 def _post_file(path: Path) -> dict[str, Any]:
@@ -23,28 +23,39 @@ def _post_file(path: Path) -> dict[str, Any]:
     return resp.json()
 
 
+def _get_job(job_id: str) -> dict[str, Any]:
+    resp = client.get(f"/jobs/{job_id}")
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 def _assert_common_shape(payload: dict[str, Any]) -> None:
-    # Summary fields
+    # Response summary fields
+    assert "job_id" in payload
+    assert "filename" in payload
     assert "total_rows" in payload
     assert "valid_rows" in payload
     assert "invalid_rows" in payload
-    assert "rows" in payload
+    assert "invalid_preview" in payload
 
+    assert isinstance(payload["job_id"], str)
+    assert isinstance(payload["filename"], str)
     assert isinstance(payload["total_rows"], int)
     assert isinstance(payload["valid_rows"], int)
     assert isinstance(payload["invalid_rows"], int)
-    assert isinstance(payload["rows"], list)
+    assert isinstance(payload["invalid_preview"], list)
 
     # Self-consistency
     assert payload["total_rows"] == payload["valid_rows"] + payload["invalid_rows"]
-    assert payload["total_rows"] == len(payload["rows"])
+    assert len(payload["invalid_preview"]) <= payload["invalid_rows"]
+    assert len(payload["invalid_preview"]) <= 20
 
-    # Per-row structure
-    for row in payload["rows"]:
+    # invalid_preview row structure
+    for row in payload["invalid_preview"]:
         assert "row_index" in row
-        assert "platform" in row
-        assert "url" in row
+        assert "error_messages" in row
         assert isinstance(row["row_index"], int)
+        assert isinstance(row["error_messages"], list)
 
 
 @pytest.mark.parametrize(
@@ -54,20 +65,16 @@ def _assert_common_shape(payload: dict[str, Any]) -> None:
 def test_upload_valid_files_returns_all_valid(filename: str) -> None:
     payload = _post_file(FIXTURES_DIR / filename)
     _assert_common_shape(payload)
+    assert payload["filename"] == filename
 
     assert payload["total_rows"] > 0
     assert payload["invalid_rows"] == 0
     assert payload["valid_rows"] == payload["total_rows"]
+    assert payload["invalid_preview"] == []
 
-    # Valid rows should have platform/url and should NOT report errors
-    for row in payload["rows"]:
-        assert row["platform"] in {"youtube", "tiktok", "instagram"}
-        assert isinstance(row["url"], str)
-        assert row["url"].strip() != ""
-
-        # Allow either missing error_messages or empty list
-        if "error_messages" in row:
-            assert row["error_messages"] == []
+    # DB schema consistency: jobs.source_filename should be persisted and queryable.
+    job = _get_job(payload["job_id"])
+    assert job["filename"] == filename
 
 
 @pytest.mark.parametrize(
@@ -77,16 +84,19 @@ def test_upload_valid_files_returns_all_valid(filename: str) -> None:
 def test_upload_invalid_files_reports_errors(filename: str) -> None:
     payload = _post_file(FIXTURES_DIR / filename)
     _assert_common_shape(payload)
+    assert payload["filename"] == filename
 
     assert payload["total_rows"] > 0
     assert payload["valid_rows"] == 0
     assert payload["invalid_rows"] == payload["total_rows"]
 
-    # Every row should include error_messages with at least one message
-    for row in payload["rows"]:
-        assert "error_messages" in row
-        assert isinstance(row["error_messages"], list)
+    # Preview should contain validation messages for invalid rows.
+    assert len(payload["invalid_preview"]) > 0
+    for row in payload["invalid_preview"]:
         assert len(row["error_messages"]) >= 1
+
+    job = _get_job(payload["job_id"])
+    assert job["filename"] == filename
 
 
 @pytest.mark.parametrize(
@@ -96,17 +106,18 @@ def test_upload_invalid_files_reports_errors(filename: str) -> None:
 def test_upload_mixed_files_splits_valid_and_invalid(filename: str) -> None:
     payload = _post_file(FIXTURES_DIR / filename)
     _assert_common_shape(payload)
+    assert payload["filename"] == filename
 
     assert payload["total_rows"] > 0
     assert payload["valid_rows"] > 0
     assert payload["invalid_rows"] > 0
 
-    invalid_rows = [r for r in payload["rows"] if r.get("error_messages")]
-    valid_rows = [r for r in payload["rows"] if not r.get("error_messages")]
+    assert len(payload["invalid_preview"]) > 0
+    for row in payload["invalid_preview"]:
+        assert len(row["error_messages"]) >= 1
 
-    # Ensure we actually see both kinds in per-row results
-    assert len(invalid_rows) == payload["invalid_rows"]
-    assert len(valid_rows) == payload["valid_rows"]
+    job = _get_job(payload["job_id"])
+    assert job["filename"] == filename
 
 
 def test_upload_rejects_non_csv_xlsx() -> None:
