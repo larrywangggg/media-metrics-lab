@@ -61,6 +61,78 @@ type ResultRow = {
   [k: string]: unknown;
 };
 
+type ResultDisplayRow = ResultRow & {
+  engagement_rate: number | null;
+};
+
+type ResultColumnKey =
+  | "status"
+  | "platform"
+  | "url"
+  | "title"
+  | "views"
+  | "likes"
+  | "comments"
+  | "published_at"
+  | "engagement_rate"
+  | "error_message";
+
+type ResultColumn = {
+  key: ResultColumnKey;
+  label: string;
+  headClassName?: string;
+  cellClassName?: string;
+};
+
+const RESULT_COLUMNS: ResultColumn[] = [
+  { key: "status", label: "Status" },
+  { key: "platform", label: "Platform" },
+  {
+    key: "url",
+    label: "URL",
+    cellClassName: "max-w-[280px] truncate",
+  },
+  {
+    key: "title",
+    label: "Title",
+    cellClassName: "max-w-[360px] whitespace-normal",
+  },
+  {
+    key: "views",
+    label: "Views",
+    headClassName: "text-right",
+    cellClassName: "text-right tabular-nums whitespace-nowrap",
+  },
+  {
+    key: "likes",
+    label: "Likes",
+    headClassName: "text-right",
+    cellClassName: "text-right tabular-nums whitespace-nowrap",
+  },
+  {
+    key: "comments",
+    label: "Comments",
+    headClassName: "text-right",
+    cellClassName: "text-right tabular-nums whitespace-nowrap",
+  },
+  {
+    key: "published_at",
+    label: "Published",
+    cellClassName: "whitespace-nowrap",
+  },
+  {
+    key: "engagement_rate",
+    label: "Engagement Rate",
+    headClassName: "text-right",
+    cellClassName: "text-right tabular-nums whitespace-nowrap",
+  },
+  {
+    key: "error_message",
+    label: "Error",
+    cellClassName: "max-w-[360px]",
+  },
+];
+
 function normaliseResults(payload: unknown): ResultRow[] {
   if (Array.isArray(payload)) return payload as ResultRow[];
 
@@ -102,6 +174,42 @@ function safeString(v: unknown) {
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   return JSON.stringify(v);
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function computeEngagementRate(row: ResultRow): number | null {
+  const views = toFiniteNumber(row.views);
+  if (views === null || views <= 0) return null;
+
+  const likes = toFiniteNumber(row.likes) ?? 0;
+  const comments = toFiniteNumber(row.comments) ?? 0;
+  return ((likes + comments) / views) * 100;
+}
+
+function formatPublishedDate(value: unknown): string {
+  if (typeof value !== "string" || value.trim() === "") return "—";
+  const trimmed = value.trim();
+
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default function JobDetailPage() {
@@ -166,28 +274,12 @@ export default function JobDetailPage() {
     };
   }, [apiBase, jobId]);
 
-  const columns = React.useMemo(() => {
-    // Prefer a stable, product-like column order:
-    const preferred = [
-      "status",
-      "platform",
-      "url",
-      "title",
-      "views",
-      "likes",
-      "comments",
-      "published_at",
-      "engagement_rate",
-      "error_message",
-    ];
-
-    const keys = new Set<string>();
-    for (const r of results) Object.keys(r).forEach((k) => keys.add(k));
-
-    const head = preferred.filter((k) => keys.has(k));
-    const tail = Array.from(keys).filter((k) => !head.includes(k));
-
-    return [...head, ...tail];
+  const displayResults = React.useMemo<ResultDisplayRow[]>(() => {
+    return results.map((row) => ({
+      ...row,
+      // Temporary client-side value until backend provides this metric.
+      engagement_rate: computeEngagementRate(row),
+    }));
   }, [results]);
 
   async function onExportCsv() {
@@ -268,35 +360,37 @@ export default function JobDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Results</CardTitle>
-            <CardDescription>Showing {results.length} row(s).</CardDescription>
+            <CardDescription>Showing {displayResults.length} row(s).</CardDescription>
           </CardHeader>
 
           <CardContent>
-            {results.length === 0 ? (
+            {displayResults.length === 0 ? (
               <div className="text-sm text-muted-foreground">
                 No results found for this job.
               </div>
             ) : (
               <div className="app-table-shell overflow-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/60 [&_th]:h-11 [&_th]:border-b [&_th]:font-semibold [&_th]:text-foreground">
                     <TableRow>
-                      {columns.map((c) => (
-                        <TableHead key={c}>{c}</TableHead>
+                      {RESULT_COLUMNS.map((column) => (
+                        <TableHead key={column.key} className={column.headClassName}>
+                          {column.label}
+                        </TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    {results.map((row, idx) => {
+                    {displayResults.map((row, idx) => {
                       const rowStatus = String(row.status ?? "");
                       return (
                         <TableRow key={idx} className={rowTintClass(rowStatus)}>
-                          {columns.map((c) => {
-                            if (c === "status") {
+                          {RESULT_COLUMNS.map((column) => {
+                            if (column.key === "status") {
                               const s = String(row.status ?? "");
                               return (
-                                <TableCell key={c}>
+                                <TableCell key={column.key} className={column.cellClassName}>
                                   {s ? (
                                     <span className={statusBadgeClass(s)}>{s}</span>
                                   ) : (
@@ -306,13 +400,36 @@ export default function JobDetailPage() {
                               );
                             }
 
-                            if (c === "error_message") {
+                            if (column.key === "published_at") {
+                              return (
+                                <TableCell key={column.key} className={column.cellClassName}>
+                                  {formatPublishedDate(row.published_at)}
+                                </TableCell>
+                              );
+                            }
+
+                            if (column.key === "engagement_rate") {
+                              const rate = row.engagement_rate;
+                              return (
+                                <TableCell key={column.key} className={column.cellClassName}>
+                                  {rate === null ? "—" : `${rate.toFixed(2)}%`}
+                                </TableCell>
+                              );
+                            }
+
+                            if (column.key === "error_message") {
                               const msg = row.error_message;
-                              if (!msg) return <TableCell key={c} />;
+                              if (!msg) {
+                                return (
+                                  <TableCell key={column.key} className={column.cellClassName}>
+                                    —
+                                  </TableCell>
+                                );
+                              }
 
                               // Truncate to keep layout stable, show full message on hover
                               return (
-                                <TableCell key={c} className="max-w-[360px]">
+                                <TableCell key={column.key} className={column.cellClassName}>
                                   <span
                                     className="status-text-error block truncate"
                                     title={msg}
@@ -323,10 +440,11 @@ export default function JobDetailPage() {
                               );
                             }
 
-                            // Default rendering
+                            const raw = row[column.key];
+                            const text = safeString(raw);
                             return (
-                              <TableCell key={c}>
-                                {safeString(row[c])}
+                              <TableCell key={column.key} className={column.cellClassName}>
+                                {text || "—"}
                               </TableCell>
                             );
                           })}
