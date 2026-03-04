@@ -13,15 +13,28 @@ from dotenv import load_dotenv
 # access to the values within the .ini file in use.
 config = context.config
 load_dotenv()
-db_url = os.getenv("DATABASE_URL")
+
+
+def _normalize_database_url(database_url: str) -> str:
+    normalized = database_url.strip()
+    if normalized.startswith("postgresql+psycopg://"):
+        return normalized
+    if normalized.startswith("postgresql://"):
+        return "postgresql+psycopg://" + normalized[len("postgresql://") :]
+    if normalized.startswith("postgres://"):
+        return "postgresql+psycopg://" + normalized[len("postgres://") :]
+    return normalized
+
+
+db_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
 if not db_url:
     raise RuntimeError(
-        "DATABASE_URL environment variable not set"
-        "Create backend/.env from backend/.env.example and set DATABASE_URL."
+        "Database URL not configured. Set DATABASE_URL (preferred) or POSTGRES_URL. "
+        "For Vercel: Project Settings -> Environment Variables."
         )
 
 # Override alembic.ini sqlalchemy.url
-config.set_main_option("sqlalchemy.url", db_url)
+config.set_main_option("sqlalchemy.url", _normalize_database_url(db_url))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
