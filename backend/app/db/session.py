@@ -7,16 +7,22 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-load_dotenv()  # take environment variables from .env.
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL environment variable not set"
-        "Create backend/.env from backend/.env.example and set DATABASE_URL."
-        )
+load_dotenv()  # Load local .env in development; ignored if not present.
 
-print("DATABASE_URL =", DATABASE_URL)
-engine = create_engine(DATABASE_URL)
+
+def _resolve_database_url() -> str:
+    # Prefer explicit DATABASE_URL. Fall back to common managed-DB variable.
+    database_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+    if database_url:
+        return database_url
+
+    raise RuntimeError(
+        "Database URL not configured. Set DATABASE_URL (preferred) or POSTGRES_URL. "
+        "For Vercel: Project Settings -> Environment Variables."
+    )
+
+
+engine = create_engine(_resolve_database_url())
 
 SessionLocal = sessionmaker(
     bind=engine,
