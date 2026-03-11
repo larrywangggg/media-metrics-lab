@@ -11,12 +11,13 @@ setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run all pending Alembic migrations on startup (idempotent)
-    from alembic.config import Config
-    from alembic import command
-    import os
-    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
-    command.upgrade(alembic_cfg, "head")
+    # Run all pending Alembic migrations on startup (idempotent, in subprocess to avoid blocking)
+    import subprocess, sys, os
+    subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=os.path.join(os.path.dirname(__file__), ".."),
+        check=True,
+    )
     yield
 
 
