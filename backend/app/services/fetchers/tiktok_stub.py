@@ -12,10 +12,22 @@ class TikTokFetcherStub:
         # In a real implementation, you would parse the URL and make API calls to TikTok here.
         # For this stub, we return hardcoded data that simulates a failure.
         
+        # Try to extract @username from TikTok URL (e.g. tiktok.com/@username/video/...)
+        channel = None
+        try:
+            from urllib.parse import urlparse
+            for part in urlparse(url).path.split('/'):
+                if part.startswith('@'):
+                    channel = part
+                    break
+        except Exception:
+            pass
+
         return FetchResult(
             ok=False,
             url=url,
             platform=self.platform,
+            channel=channel,
             title=None,
             views=None,
             likes=None,

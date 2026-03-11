@@ -22,7 +22,6 @@ class Result(Base):
     comments: Mapped[int | None] = mapped_column(Integer, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     engagement_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    channel: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default = "queued")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Define your columns and relationships here

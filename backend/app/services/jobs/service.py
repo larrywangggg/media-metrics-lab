@@ -66,16 +66,18 @@ def creat_job_from_upload(db: Session, file) -> Dict[str, Any]:
     
     
 def process_job(db: Session, job_id: uuid.UUID) -> Dict[str, int]:
-    """Short row processor for issue#7, matches stub style"""
+    """Process rows one-by-one, committing after each so polling shows live progress."""
     results = db.scalars(
         select(Result)
         .where(Result.job_id == job_id, Result.status == "queued")
         .order_by(Result.id.asc())
-    ).all() # get all queued results for the job, ordered by id to maintain consistent processing order
-    
+    ).all()
+
+    job = db.get(Job, job_id)
+
     success_rows = 0
     failed_rows = 0
-    for row in results:
+    for i, row in enumerate(results, start=1):
         fetch_result = get_fetcher(row.platform).fetch(row.url)
         if fetch_result["ok"]:
             row.title = fetch_result["title"]
@@ -83,15 +85,21 @@ def process_job(db: Session, job_id: uuid.UUID) -> Dict[str, int]:
             row.likes = fetch_result["likes"]
             row.comments = fetch_result["comments"]
             row.published_at = fetch_result["published_at"]
+            row.channel = fetch_result.get("channel")
             row.status = "success"
             row.error_message = None
             success_rows += 1
         else:
             row.status = "failed"
             row.error_message = fetch_result["error_message"]
+            row.channel = None
             failed_rows += 1
-    
-    db.commit()
+
+        # Commit after each row so polling can see partial progress
+        if job:
+            job.processed_rows = i
+        db.commit()
+
     return {
         "processed_rows": len(results),
         "success_rows": success_rows,

@@ -10,13 +10,14 @@ class FetchResult(TypedDict):
     ok : bool
     url : str
     platform : str
-    
+    channel : Optional[str]
+
     #success upload fields
     title : Optional[str]
     views : Optional[int]
     likes : Optional[int]
     comments : Optional[int]
     published_at : Optional[datetime]
-    
+
     #error upload fields
     error_message : Optional[str]

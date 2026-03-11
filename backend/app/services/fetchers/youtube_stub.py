@@ -25,11 +25,23 @@ except Exception: #yt-dlp is not installed or failed to import, we will fall bac
     yt_dlp = None 
     DownloadError = Exception
 
+def _extract_channel_from_url(url: str) -> Optional[str]:
+    """Best-effort @handle extraction from URL path (works for /@channel/... style)."""
+    try:
+        from urllib.parse import urlparse
+        for part in urlparse(url).path.split('/'):
+            if part.startswith('@'):
+                return part
+    except Exception:
+        pass
+    return None
+
 # Helper functions for constructing FetchResult objects and parsing yt-dlp output/errors
 def _success(
     *,
     url:str,
     platform:str,
+    channel: Optional[str] = None,
     title: Optional[str] = None,
     views: Optional[int] = None,
     likes: Optional[int] = None,
@@ -40,6 +52,7 @@ def _success(
         "ok": True,
         "url": url,
         "platform": platform,
+        "channel": channel,
         "title": title,
         "views": views,
         "likes": likes,
@@ -53,6 +66,7 @@ def _fail(*, url:str, platform:str, msg:str) -> Dict[str, Any]:
         "ok": False,
         "url": url,
         "platform": platform,
+        "channel": _extract_channel_from_url(url),
         "title": None,
         "views": None,
         "likes": None,
@@ -123,6 +137,7 @@ class YouTubeFetcherStub:
             return _success(
             url=url,
             platform=self.platform,
+            channel=_extract_channel_from_url(url),
             title="Example YouTube Video",
             views=123456,
             likes=7890,
@@ -174,17 +189,25 @@ class YouTubeFetcherStub:
                 likes = info.get("like_count")
                 comments = info.get("comment_count")
                 published_at = _parse_timestamp(info)
-                
+
+                # Prefer @handle from uploader_id; fall back to uploader display name
+                uploader_id = info.get("uploader_id") or ""
+                channel_name: Optional[str] = (
+                    uploader_id if str(uploader_id).startswith("@")
+                    else info.get("uploader") or info.get("channel") or _extract_channel_from_url(url) or None
+                )
+
                 # ensure ints where possible, else None
                 def _to_int(x:Any) -> Optional[int]:
                     try:
                         return int(x) if x is not None else None
                     except Exception:
                         return None
-                    
+
             return _success(
                 url=url,
                 platform=self.platform,
+                channel=channel_name,
                 title=title if isinstance(title, str) else None,
                 views=_to_int(views),
                 likes=_to_int(likes),
