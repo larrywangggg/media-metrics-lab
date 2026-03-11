@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('results', sa.Column('channel', sa.Text(), nullable=True))
+    op.execute("ALTER TABLE results ADD COLUMN IF NOT EXISTS channel TEXT")
 
 
 def downgrade() -> None:
