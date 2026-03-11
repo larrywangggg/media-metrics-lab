@@ -128,9 +128,25 @@ class YouTubeFetcherStub:
         self.innertube_key = os.getenv("YOUTUBE_INNERTUBE_KEY")
         self.po_token = os.getenv("YOUTUBE_PO_TOKEN")
         self.proxy = os.getenv("YTDLP_PROXY")
-        self.cookies_file = os.getenv("YTDLP_COOKIES_FILE")
+        self.cookies_file = os.getenv("YTDLP_COOKIES_FILE") or self._init_cookies_from_b64()
         
     
+    @staticmethod
+    def _init_cookies_from_b64() -> Optional[str]:
+        """Decode YTDLP_COOKIES_B64 env var to /tmp/yt_cookies.txt and return the path."""
+        b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
+        if not b64:
+            return None
+        import base64, tempfile
+        try:
+            content = base64.b64decode(b64)
+            path = os.path.join(tempfile.gettempdir(), "yt_cookies.txt")
+            with open(path, "wb") as f:
+                f.write(content)
+            return path
+        except Exception:
+            return None
+
     def fetch(self, url:str) -> Dict[str, Any]:
         if self.impl != "yt_dlp":
             #Return stub data for MVP or if yt-dlp is not available
