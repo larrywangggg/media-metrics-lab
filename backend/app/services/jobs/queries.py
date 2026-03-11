@@ -25,6 +25,7 @@ def _result_to_dict(r: Result) -> Dict[str, Any]:
         "job_id": str(r.job_id),
         "platform": r.platform,
         "url": r.url,
+        "channel": r.channel,
         "status": r.status,
         "error_message": r.error_message,
         "title": r.title,

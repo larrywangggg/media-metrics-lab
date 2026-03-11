@@ -1,13 +1,26 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.routers import router as api_router
 from app.core.config import get_cors_origins
 from app.core.logging import setup_logging
+from app.db.session import engine
 
-setup_logging() 
+setup_logging()
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Idempotent schema migration — adds channel column if it doesn't exist yet
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE results ADD COLUMN IF NOT EXISTS channel TEXT"))
+        conn.commit()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,  
