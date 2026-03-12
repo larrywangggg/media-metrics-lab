@@ -68,10 +68,10 @@ function extractChannel(url: string | null): string {
 
 function statusLabel(status: string): string {
   switch (status) {
-    case 'running': return '⏳ Processing';
-    case 'queued': return '⏳ Queued';
-    case 'completed': return '✅ Complete';
-    case 'failed': return '❌ Failed';
+    case 'running': return 'Processing';
+    case 'queued': return 'Queued';
+    case 'completed': return 'Complete';
+    case 'failed': return 'Failed';
     default: return status;
   }
 }
@@ -369,18 +369,20 @@ export function BulkFetchPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap max-w-[160px]">
+                            <span className="text-sm font-semibold text-gray-700 truncate block">
+                              {row.channel ?? extractChannel(row.url)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 max-w-[250px]">
                             <a
                               href={row.url ?? '#'}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline truncate block"
+                              className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline truncate block"
                               title={row.url ?? ''}
                             >
-                              {row.channel ?? extractChannel(row.url)}
+                              {row.title ?? '—'}
                             </a>
-                          </td>
-                          <td className="px-6 py-4 max-w-[250px]">
-                            <div className="text-sm text-gray-600 truncate">{row.title ?? '—'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(row.published_at)}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
