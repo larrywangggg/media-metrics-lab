@@ -347,18 +347,18 @@ export function SingleFetchPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap max-w-[160px]">
+                          <span className="text-sm font-semibold text-gray-700 truncate block">{video.channel}</span>
+                        </td>
+                        <td className="px-6 py-4 max-w-[280px]">
                           <a
                             href={video.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline truncate block"
+                            className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline truncate block"
                             title={video.url}
                           >
-                            {video.channel}
+                            {video.title}
                           </a>
-                        </td>
-                        <td className="px-6 py-4 max-w-[280px]">
-                          <div className="text-sm text-gray-600 truncate">{video.title}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{video.published}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
