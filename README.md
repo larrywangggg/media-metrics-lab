@@ -1,98 +1,68 @@
-# Media Metrics Lab
+# Overview
 
-**Media Metrics Lab** is an extensible platform for collecting, analysing, and exporting social media performance data.
+This project is a social media metrics collection platform for content operations and analytics workflows.  
+Its core goal is to standardize the full flow: link collection -> metrics fetching -> result review -> CSV export.  
+The current version is a working MVP foundation with local end-to-end execution, and it is now in the feature expansion phase (as of 2026-03-13).
 
-**One-line pitch:**  
-Upload a spreadsheet → fetch social metrics → view results → export data.
+## Technology Stack
 
+### Backend
 
+- `FastAPI`: API endpoints and background job triggering
+- `SQLAlchemy` + `PostgreSQL`: job/result persistence
+- `Alembic`: database migrations
+- `uv`: Python dependency/runtime management
+- `yt-dlp` (optional mode): real YouTube metadata fetching
 
-## Project Vision
+### Frontend
 
-Media Metrics Lab is designed as a **long-term analytics platform** for working with social media data at scale.  
-The current implementation focuses on a **narrow, reliable MVP** to establish a solid technical and product foundation.
+- `Next.js` (App Router)
+- `React`
+- `Tailwind CSS`
+- `TypeScript`
 
-Features beyond the MVP (advanced analytics, richer data models, automation, and integrations) are intentionally deferred.
+## Project Structure
 
+```text
+media-metrics-lab/
+├── .github/                             # GitHub config directory
+│   └── workflows/                       # CI workflow definitions
+│       └── ci.yml                       # Backend tests + frontend lint/build CI
+├── backend/                             # Backend service
+│   ├── app/                             # Main backend application code
+│   │   ├── api/                         # HTTP routes (jobs/system)
+│   │   ├── core/                        # Configuration and logging
+│   │   ├── db/                          # DB session and ORM models
+│   │   └── services/                    # Business logic (upload/jobs/fetchers)
+│   ├── alembic/                         # Migration scripts and config
+│   ├── test/                            # Pytest tests and fixtures
+│   ├── main.py                          # Uvicorn entry point (main:app)
+│   ├── pyproject.toml                   # Python project dependencies
+│   ├── uv.lock                          # Locked Python dependencies
+│   └── README.md                        # Backend-specific documentation
+├── frontend/                            # Frontend service
+│   ├── app/                             # Next.js route pages
+│   ├── components/                      # Page and UI components
+│   ├── hooks/                           # React hooks
+│   ├── lib/                             # Config/helpers
+│   ├── public/                          # Static assets
+│   ├── package.json                     # Frontend dependencies/scripts
+│   └── README.md                        # Frontend README (currently default template)
+└── README.md                            # Project overview (this file)
+```
 
-## MVP Milestone
+## Quick Start
 
-- Status: **Completed**
-- Scope: **12 / 12 MVP issues closed** (as of **2026-02-23**)
-- Outcome: end-to-end workflow is available (`upload -> create job -> run -> list/detail/results -> export CSV`)
+### Prerequisites
 
-### Delivered MVP items (12/12)
-- Initialise monorepo + basic tooling
-- Backend: project structure + configuration
-- Backend: PostgreSQL setup + Alembic migrations
-- Backend: define database models (Job + Result)
-- Backend: file upload endpoint + CSV/XLSX parsing
-- Backend: create job + persist queued result rows
-- Backend: fetcher service interface (stub-first)
-- Backend: job runner (background processing)
-- Backend: job query APIs (list + detail + results)
-- Backend: export results as CSV
-- Frontend (Next.js): upload page + create job
-- Frontend (Next.js): job list + job detail + results table + export
+- Python `>=3.14`
+- Node.js `>=20`
+- PostgreSQL (local or managed)
+- `uv` installed
 
+### Installation & Running
 
-
-## Current MVP Scope
-
-The MVP provides a job-based workflow for batch processing social media links.
-
-### Core Capabilities
-- Upload CSV / XLSX files
-- Create background jobs with status tracking  
-  (`queued → running → completed / failed`)
-- Generate per-row results (success or failure)
-- Display results in a table
-- Export job results as CSV
-
-### Required Input Columns
-- `platform` (youtube / tiktok / instagram)
-- `url` (post or video link)
-
-### Result Fields
-- platform, url  
-- title (optional)  
-- views, likes, comments  
-- published_at (optional)  
-- engagement_rate (optional, calculated if available)  
-- status, error_message  
-
-
-
-## Explicitly Out of Scope (for MVP only)
-
-The following are **not part of the MVP**, but may be added later:
-- Authentication and user management
-- Caching, rate limiting, or distributed task queues
-- Multi-tenant isolation
-- Advanced UI and visualisations
-- Deep analytics (followers, channel-level metrics)
-- High-concurrency performance tuning
-
-
-
-## Data Source Strategy (MVP)
-
-- YouTube is prioritised for stability
-- TikTok / Instagram are supported with best-effort fetching  
-  (row-level failures do not fail the entire job)
-
-
-
-## Tech Stack (Current Direction)
-
-- Backend: FastAPI  
-- Frontend: Next.js  
-- Storage: PostgreSQL  
-- Export: CSV  
-
-## Run Services (Local)
-
-### 1. Backend setup (env + DB migration)
+1. Start the backend
 
 ```bash
 cd backend
@@ -102,11 +72,13 @@ uv run alembic upgrade head
 uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Notes:
-- `backend/.env` must contain a valid `DATABASE_URL` (default in `.env.example`: `postgresql+psycopg://app:app@localhost:5432/mediametrics`).
-- Make sure PostgreSQL is running and that DB exists before `alembic upgrade head`.
+If your frontend runs on `127.0.0.1:3000`, add this to `backend/.env`:
 
-### 2. Frontend setup
+```env
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+2. Start the frontend
 
 ```bash
 cd frontend
@@ -115,93 +87,77 @@ npm install
 npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-### 3. Verify services
+3. Access services
 
-- Backend: `http://127.0.0.1:8000`
 - Frontend: `http://127.0.0.1:3000`
+- Backend docs: `http://127.0.0.1:8000/docs`
 
-If you use `127.0.0.1:3000` for frontend, add this in `backend/.env` to avoid CORS issues:
+4. Suggested first paths
 
-```env
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
+- Single fetch: `/`
+- Bulk fetch: `/bulk`
+- Job history: `/history`
 
-## End-to-End Smoke Run (youtube_smoke.csv)
+## Testing & CI/CD
 
-Fixture file added for reproducible local run:
+The current testing and CI focus is protecting the main workflow from regressions.
 
-- `backend/test/fixtures/youtube_smoke/youtube_smoke.csv`
+### What is covered locally
 
-Follow these exact steps:
+Current backend `pytest` coverage includes:
 
-1. Open `http://127.0.0.1:3000/upload`.
-2. Upload `backend/test/fixtures/youtube_smoke/youtube_smoke.csv`.
-3. After redirect to `http://127.0.0.1:3000/jobs/[job_id]`, copy the `job_id` from URL.
-4. Open FastAPI docs at `http://127.0.0.1:8000/docs#/jobs/run_jobs__job_id__run_post`.
-5. In `POST /jobs/{job_id}/run`, click `Try it out`, paste `job_id`, then `Execute`.
-6. Confirm response is `202 Accepted` (job status should become `running`).
-7. Go back to `http://127.0.0.1:3000/jobs/[job_id]` and refresh the page until status is `completed` and progress reaches `10/10`.
-8. Click `Export CSV` and confirm the browser downloads `job_<job_id>_results.csv`.
+- CSV/XLSX upload parsing
+- Required-column and row-level validation (`platform` + `url`)
+- Invalid file-type rejection
 
-**Expected result**: job detail page can fetch processed rows successfully and CSV export works.
+Run locally:
 
-## Tests
-
-### Overview
-Backend tests use `pytest`, currently focused on upload parsing (CSV/XLSX).
-
-### Run
 ```bash
 cd backend
 uv sync
 PYTHONPATH=. uv run pytest -q
 ```
 
-## Current structure
-```
-media-metrics-lab/
-|-- backend/
-|   |-- main.py
-|   |-- app/
-|   |   |-- main.py
-|   |   |-- core/                  # config, logging
-|   |   |-- api/                   # routers and endpoints
-|   |   |-- db/
-|   |   |   |-- session.py
-|   |   |   |-- base.py
-|   |   |   `-- models/            # Job / Result models
-|   |   `-- services/
-|   |       |-- upload/            # file parsing + validation
-|   |       |-- jobs/              # job workflow + export
-|   |       `-- fetchers/          # platform metric fetchers
-|   |-- alembic/
-|   |   `-- versions/
-|   |-- test/
-|   |   |-- test_upload_parsing.py
-|   |   `-- fixtures/
-|   |-- pyproject.toml
-|   |-- uv.lock
-|   `-- alembic.ini
-|-- frontend/
-|   |-- app/
-|   |   |-- layout.tsx
-|   |   |-- page.tsx
-|   |   |-- globals.css
-|   |   |-- upload/page.tsx
-|   |   |-- jobs/page.tsx
-|   |   `-- jobs/[job_id]/page.tsx
-|   |-- components/ui/
-|   |-- hooks/
-|   |-- public/
-|   |-- package.json
-|   |-- next.config.ts
-|   `-- tsconfig.json
-`-- README.md
-```
+### What CI achieves
 
-## Project Status
+GitHub Actions (`.github/workflows/ci.yml`) runs on PRs and pushes to `main`.
 
-- Repository initialised
-- MVP scope defined and frozen
-- MVP implementation completed (12/12 issues)
-- Current phase: stabilization and post-MVP planning
+Backend Job:
+
+- Starts a PostgreSQL service container
+- Installs dependencies and runs `alembic upgrade head`
+- Runs `pytest -q`
+
+Frontend Job:
+
+- Runs `npm ci`
+- Runs `npm run lint`
+- Runs `npm run build`
+
+CI goals:
+
+- Catch backend parsing regressions before merge
+- Ensure frontend code passes lint and remains buildable
+- Reduce local-vs-CI environment mismatches
+
+## Implemented Features
+
+- CSV/XLSX bulk upload and job creation
+- Job lifecycle: `queued -> running -> completed/failed`
+- Async processing via FastAPI `BackgroundTasks`
+- Job list, job detail, and paginated result queries
+- CSV export for job results
+- YouTube fetcher with both `stub` and `yt_dlp` modes
+- Working Single Fetch (`/`) and Bulk Fetch (`/bulk`) pages
+- Working Job History (`/history`) and Job Detail (`/jobs/[job_id]`) pages
+- System metadata endpoint: `GET /system/meta`
+
+## Planned Features
+
+- Account/auth system (login, authorization, multi-user isolation)
+- Real backend capabilities for Campaigns/Account pages (currently mostly UI prototypes)
+- Production-grade TikTok/Instagram fetchers (currently stubs)
+- Queued execution + retry strategy (e.g., Redis/Celery)
+- Broader automated tests (backend integration tests, frontend E2E)
+- Observability improvements (structured logs, alerts, performance metrics)
+- Deployment hardening (environment layering, release and rollback strategy)
