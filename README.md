@@ -39,6 +39,7 @@ media-metrics-lab/
 │   ├── main.py                          # Uvicorn entry point (main:app)
 │   ├── pyproject.toml                   # Python project dependencies
 │   ├── uv.lock                          # Locked Python dependencies
+│   ├── Dockerfile                       # Backend container image
 │   └── README.md                        # Backend-specific documentation
 ├── frontend/                            # Frontend service
 │   ├── app/                             # Next.js route pages
@@ -47,11 +48,39 @@ media-metrics-lab/
 │   ├── lib/                             # Config/helpers
 │   ├── public/                          # Static assets
 │   ├── package.json                     # Frontend dependencies/scripts
+│   ├── Dockerfile                       # Frontend container image (3-stage standalone build)
 │   └── README.md                        # Frontend README (currently default template)
+├── docker-compose.yml                   # Local orchestration (db + backend + frontend)
+├── .env.example                         # Environment variable template for Docker
 └── README.md                            # Project overview (this file)
 ```
 
 ## Quick Start
+
+### Option A — Docker (recommended)
+
+Requires Docker Desktop.
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`: set `POSTGRES_PASSWORD` and update `DATABASE_URL` to use the same password.
+
+```bash
+docker compose up --build
+```
+
+Services start at:
+
+- Frontend: `http://localhost:3000`
+- Backend API docs: `http://localhost:8000/docs`
+- Postgres: `localhost:5432` (host-exposed for local DB tools)
+
+Database data persists in a named Docker volume (`postgres_data`) across restarts.  
+Use `docker compose down -v` only if you want to wipe the database.
+
+### Option B — Local (manual)
 
 ### Prerequisites
 
@@ -59,8 +88,6 @@ media-metrics-lab/
 - Node.js `>=20`
 - PostgreSQL (local or managed)
 - `uv` installed
-
-### Installation & Running
 
 1. Start the backend
 
@@ -97,6 +124,20 @@ npm run dev -- --hostname 127.0.0.1 --port 3000
 - Single fetch: `/`
 - Bulk fetch: `/bulk`
 - Job history: `/history`
+
+## Environment Variables
+
+Copy `.env.example` to `.env` (Docker) or the service-level `.env.example` (local) and fill in the values.
+
+| Variable | Used by | Description |
+|---|---|---|
+| `POSTGRES_PASSWORD` | db | Postgres password (required) |
+| `POSTGRES_USER` | db | Postgres user (default: `app`) |
+| `POSTGRES_DB` | db | Database name (default: `mediametrics`) |
+| `DATABASE_URL` | backend | Full SQLAlchemy connection string |
+| `FRONTEND_ORIGIN` | backend | CORS allowed origin for the frontend |
+| `YOUTUBE_FETCHER_IMPL` | backend | `stub` (fake data) or `yt_dlp` (real metrics) |
+| `NEXT_PUBLIC_API_BASE` | frontend | Backend URL as seen by the browser |
 
 ## Testing & CI/CD
 
@@ -160,4 +201,5 @@ CI goals:
 - Queued execution + retry strategy (e.g., Redis/Celery)
 - Broader automated tests (backend integration tests, frontend E2E)
 - Observability improvements (structured logs, alerts, performance metrics)
-- Deployment hardening (environment layering, release and rollback strategy)
+- Backend migration from Vercel Serverless to Railway (persistent process, no background-task truncation)
+- Deployment hardening (release and rollback strategy)
