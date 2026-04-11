@@ -1,4 +1,7 @@
+"use client";
+
 import { Plus, Video, Tag, Activity, MoreVertical, ArrowUpRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 const stats = [
@@ -90,6 +93,8 @@ const platformDots = {
 };
 
 export function CampaignsPage() {
+  const router = useRouter();
+
   return (
     <>
       {/* Header */}
@@ -138,6 +143,7 @@ export function CampaignsPage() {
                 return (
                   <div
                     key={campaign.id}
+                    onClick={() => router.push(`/campaigns/${campaign.id}`)}
                     className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-2xl transition-all hover:-translate-y-1 cursor-pointer group"
                   >
                     {/* Header with gradient */}

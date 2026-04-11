@@ -19,7 +19,7 @@ export function Sidebar() {
 
   return (
     <>
-      <nav className="hidden w-20 flex-shrink-0 flex-col items-center gap-2 border-r border-gray-200/60 bg-white/80 py-6 shadow-sm backdrop-blur-xl md:flex">
+      <nav className="hidden w-20 flex-shrink-0 flex-col items-center gap-2 border-r border-gray-200/60 bg-white/80 py-6 shadow-sm backdrop-blur-xl md:flex z-10 relative">
         <div className="mb-8 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg shadow-indigo-200">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
             <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
@@ -41,7 +41,7 @@ export function Sidebar() {
               }`}
             >
               <Icon className="h-5 w-5" strokeWidth={2.5} />
-              <div className="pointer-events-none absolute left-20 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+              <div className="pointer-events-none absolute left-20 z-50 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                 {item.label}
               </div>
             </Link>
@@ -58,7 +58,7 @@ export function Sidebar() {
             }`}
           >
             <User className="h-5 w-5" strokeWidth={2.5} />
-            <div className="pointer-events-none absolute left-20 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute left-20 z-50 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
               Account
             </div>
           </Link>
