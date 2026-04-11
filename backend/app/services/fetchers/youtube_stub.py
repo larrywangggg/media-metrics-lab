@@ -304,10 +304,12 @@ class YouTubeFetcherStub:
             )
 
         except urllib.error.HTTPError as e:
-            if e.code == 403:
-                return _fail(url=url, platform=self.platform, msg="YouTube API quota exceeded or API key is invalid.")
-            if e.code == 400:
-                return _fail(url=url, platform=self.platform, msg="Bad request to YouTube API — check the video URL.")
-            return _fail(url=url, platform=self.platform, msg=f"YouTube API HTTP error: {e.code}")
+            try:
+                error_body = json.loads(e.read())
+                google_msg = error_body.get("error", {}).get("message", "")
+            except Exception:
+                google_msg = ""
+            detail = f": {google_msg}" if google_msg else ""
+            return _fail(url=url, platform=self.platform, msg=f"YouTube API error {e.code}{detail}")
         except Exception as e:
             return _fail(url=url, platform=self.platform, msg=f"YouTube API request failed: {e}")
