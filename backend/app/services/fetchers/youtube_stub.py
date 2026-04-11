@@ -1,13 +1,18 @@
 """
 YouTube fetcher:
 - Default: returns hardcoded stub data (MVP behaviour)
-- Optional: uses yt-dlp to extract real YouTube metadata (views/likes/comments/title/published_at)
+- Optional: uses yt-dlp to extract real YouTube metadata
+- Optional: uses YouTube Data API v3 for environments where yt-dlp is blocked
 
 Switch via env:
-- YOUTUBE_FETCHER_IMPL=stub|yt_dlp
-Optional stability knobs:
-- YOUTUBE_INNERTUBE_KEY=... (Innertube API key, optional)
-- YOUTUBE_PO_TOKEN=... (PO token, optional)
+- YOUTUBE_FETCHER_IMPL=stub|yt_dlp|youtube_api
+
+YouTube Data API v3 knobs:
+- YOUTUBE_API_KEY=... (required when YOUTUBE_FETCHER_IMPL=youtube_api)
+
+yt-dlp stability knobs:
+- YOUTUBE_INNERTUBE_KEY=... (optional)
+- YOUTUBE_PO_TOKEN=... (optional)
 - YTDLP_PROXY=http://... (optional)
 - YTDLP_COOKIES_FILE=/path/to/cookies.txt (optional)
 """
@@ -32,6 +37,25 @@ def _extract_channel_from_url(url: str) -> Optional[str]:
         for part in urlparse(url).path.split('/'):
             if part.startswith('@'):
                 return part
+    except Exception:
+        pass
+    return None
+
+
+def _extract_video_id(url: str) -> Optional[str]:
+    """Extract YouTube video ID from watch, youtu.be, shorts, and embed URLs."""
+    from urllib.parse import urlparse, parse_qs
+    try:
+        parsed = urlparse(url)
+        if parsed.netloc in ("youtu.be", "www.youtu.be"):
+            return parsed.path.lstrip("/").split("/")[0] or None
+        if "youtube.com" in parsed.netloc:
+            qs = parse_qs(parsed.query)
+            if "v" in qs:
+                return qs["v"][0]
+            parts = [p for p in parsed.path.strip("/").split("/") if p]
+            if len(parts) >= 2 and parts[0] in ("shorts", "embed", "v", "e"):
+                return parts[1]
     except Exception:
         pass
     return None
@@ -123,18 +147,25 @@ class YouTubeFetcherStub:
     platform = "youtube"
     
     def __init__(self) -> None:
-        self.impl = os.getenv("YOUTUBE_FETCHER_IMPL", "stub").strip().lower() #fall back to stub if not set or invalid
-        #Optional: yt-dlp YouTube extractor knobs
+        self.impl = os.getenv("YOUTUBE_FETCHER_IMPL", "stub").strip().lower()
+        # YouTube Data API v3
+        self.youtube_api_key = os.getenv("YOUTUBE_API_KEY")
+        # yt-dlp knobs
         self.innertube_key = os.getenv("YOUTUBE_INNERTUBE_KEY")
         self.po_token = os.getenv("YOUTUBE_PO_TOKEN")
         self.proxy = os.getenv("YTDLP_PROXY")
         self.cookies_file = os.getenv("YTDLP_COOKIES_FILE")
         
     
-    def fetch(self, url:str) -> Dict[str, Any]:
-        if self.impl != "yt_dlp":
-            #Return stub data for MVP or if yt-dlp is not available
-            return _success(
+    def fetch(self, url: str) -> Dict[str, Any]:
+        if self.impl == "yt_dlp":
+            if yt_dlp is None:
+                return _fail(url=url, platform=self.platform, msg="yt-dlp is not available.")
+            return self._fetch_with_ytdlp(url)
+        if self.impl == "youtube_api":
+            return self._fetch_with_youtube_api(url)
+        # default: stub
+        return _success(
             url=url,
             platform=self.platform,
             channel=_extract_channel_from_url(url),
@@ -144,10 +175,6 @@ class YouTubeFetcherStub:
             comments=123,
             published_at=datetime.now(timezone.utc),
         )
-        if yt_dlp is None:
-            return _fail(url=url, platform=self.platform, msg="yt-dlp is not available. Please install yt-dlp or switch to stub implementation.")
-        
-        return self._fetch_with_ytdlp(url)
             
     def _fetch_with_ytdlp(self, url:str) -> Dict[str, Any]:
         extractor_args: Dict[str, Dict[str, list[str]]] = {}
@@ -217,5 +244,70 @@ class YouTubeFetcherStub:
             
         except DownloadError as e:
             return _fail(url=url, platform=self.platform, msg=_map_ytdlp_error(e))
-        except Exception as e:   
+        except Exception as e:
             return _fail(url=url, platform=self.platform, msg=f"Unexpected error: {e}")
+
+    def _fetch_with_youtube_api(self, url: str) -> Dict[str, Any]:
+        import json
+        import urllib.error
+        import urllib.parse
+        import urllib.request
+
+        if not self.youtube_api_key:
+            return _fail(url=url, platform=self.platform, msg="YOUTUBE_API_KEY is not configured.")
+
+        video_id = _extract_video_id(url)
+        if not video_id:
+            return _fail(url=url, platform=self.platform, msg="Could not extract video ID from URL.")
+
+        params = urllib.parse.urlencode({
+            "part": "snippet,statistics",
+            "id": video_id,
+            "key": self.youtube_api_key,
+        })
+        api_url = f"https://www.googleapis.com/youtube/v3/videos?{params}"
+
+        try:
+            with urllib.request.urlopen(api_url, timeout=10) as resp:
+                data = json.loads(resp.read())
+
+            items = data.get("items", [])
+            if not items:
+                return _fail(url=url, platform=self.platform, msg="Video not found or is private.")
+
+            snippet = items[0].get("snippet", {})
+            statistics = items[0].get("statistics", {})
+
+            published_at: Optional[datetime] = None
+            published_at_str = snippet.get("publishedAt")
+            if published_at_str:
+                try:
+                    published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                except Exception:
+                    pass
+
+            def _to_int(x: Any) -> Optional[int]:
+                try:
+                    return int(x) if x is not None else None
+                except Exception:
+                    return None
+
+            return _success(
+                url=url,
+                platform=self.platform,
+                channel=snippet.get("channelTitle"),
+                title=snippet.get("title"),
+                views=_to_int(statistics.get("viewCount")),
+                likes=_to_int(statistics.get("likeCount")),
+                comments=_to_int(statistics.get("commentCount")),
+                published_at=published_at,
+            )
+
+        except urllib.error.HTTPError as e:
+            if e.code == 403:
+                return _fail(url=url, platform=self.platform, msg="YouTube API quota exceeded or API key is invalid.")
+            if e.code == 400:
+                return _fail(url=url, platform=self.platform, msg="Bad request to YouTube API — check the video URL.")
+            return _fail(url=url, platform=self.platform, msg=f"YouTube API HTTP error: {e.code}")
+        except Exception as e:
+            return _fail(url=url, platform=self.platform, msg=f"YouTube API request failed: {e}")
