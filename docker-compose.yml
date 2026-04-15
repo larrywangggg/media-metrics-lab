@@ -21,6 +21,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
       YOUTUBE_FETCHER_IMPL: ${YOUTUBE_FETCHER_IMPL:-stub}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
     ports:
       - "8000:8000"
     depends_on:

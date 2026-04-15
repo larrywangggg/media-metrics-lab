@@ -167,7 +167,14 @@ export function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiBase}/jobs?limit=100`);
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch(`${apiBase}/jobs?limit=100`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        window.location.href = "/login?next=/history";
+        return;
+      }
       if (!res.ok) throw new Error(`Failed to fetch jobs (${res.status})`);
       const data = await res.json();
       setJobs(data.items ?? []);
