@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 
+from app.core.security import get_current_user_id
 from app.db.session import get_db
 from app.services.jobs.service import creat_job_from_upload, mark_job_running, run_job_in_background
 from app.services.jobs.queries import list_job_results, list_jobs, get_job_detail
@@ -38,13 +39,22 @@ def run(job_id: UUID, background_tasks: BackgroundTasks, db: Session = Depends(g
     
     
 @router.get("")
-def get_jobs(limit: int=20, offset: int=0, db: Session = Depends(get_db)):
+def get_jobs(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _user_id: int = Depends(get_current_user_id),
+):
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
     return list_jobs(db, limit=limit, offset=offset)
 
 @router.get("/{job_id}")
-def get_job(job_id: UUID, db: Session = Depends(get_db)):
+def get_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    _user_id: int = Depends(get_current_user_id),
+):
     data = get_job_detail(db, job_id=job_id)
     if not data:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
@@ -53,9 +63,11 @@ def get_job(job_id: UUID, db: Session = Depends(get_db)):
 @router.get("/{job_id}/results")
 def get_results(
     job_id: UUID,
-    limit: int=50,
-    offset: int=0,
-    db: Session=Depends(get_db)):
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _user_id: int = Depends(get_current_user_id),
+):
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
     data = list_job_results(db, job_id=job_id, limit=limit, offset=offset)
@@ -64,8 +76,12 @@ def get_results(
     return data
 
 
-@router.get("/{job_id}/export.csv",response_class=StreamingResponse)
-def export_csv(job_id: UUID, db: Session = Depends(get_db)):
+@router.get("/{job_id}/export.csv", response_class=StreamingResponse)
+def export_csv(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    _user_id: int = Depends(get_current_user_id),
+):
     try:
         return export_job_results_csv(db, job_id)
     except HTTPException:

@@ -12,6 +12,23 @@ client = TestClient(app)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "validation"
 
+# Register a test user once and obtain a token for authenticated requests.
+_register_resp = client.post(
+    "/auth/register",
+    json={"username": "ci_test_user", "password": "ci_test_pass"},
+)
+# 201 on first run, 409 if the DB already has this user (re-runs) — both fine.
+if _register_resp.status_code == 409:
+    _login_resp = client.post(
+        "/auth/login",
+        json={"username": "ci_test_user", "password": "ci_test_pass"},
+    )
+    _TOKEN = _login_resp.json()["access_token"]
+else:
+    _TOKEN = _register_resp.json()["access_token"]
+
+_AUTH_HEADERS = {"Authorization": f"Bearer {_TOKEN}"}
+
 
 def _post_file(path: Path) -> dict[str, Any]:
     assert path.exists(), f"Fixture not found: {path}"
@@ -24,7 +41,7 @@ def _post_file(path: Path) -> dict[str, Any]:
 
 
 def _get_job(job_id: str) -> dict[str, Any]:
-    resp = client.get(f"/jobs/{job_id}")
+    resp = client.get(f"/jobs/{job_id}", headers=_AUTH_HEADERS)
     assert resp.status_code == 200, resp.text
     return resp.json()
 
