@@ -1,7 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 import os
 
 router = APIRouter()
+
+@router.api_route("/health", methods=["GET", "HEAD"], tags=["system"])
+def health():
+    return Response(status_code=200)
 
 @router.get("/meta", tags=["system"])
 def meta():
