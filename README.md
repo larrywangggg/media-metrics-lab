@@ -62,7 +62,13 @@ media-metrics-lab/
 
 ## Quick Start
 
-### Option A — Docker (recommended)
+### Option A — Online (recommended)
+
+Visit the live deployment: [https://media-metrics-lab-frontend.vercel.app/](https://media-metrics-lab-frontend.vercel.app/)
+
+No setup required.
+
+### Option B — Docker
 
 Requires Docker Desktop.
 
@@ -89,7 +95,7 @@ Services start at:
 Database data persists in a named Docker volume (`postgres_data`) across restarts.  
 Use `docker compose down -v` only if you want to wipe the database.
 
-### Option B — Local (manual)
+### Option C — Local (manual)
 
 ### Prerequisites
 
@@ -221,8 +227,11 @@ CI goals:
 
 ### Infrastructure
 - Docker support: `docker-compose.yml` with PostgreSQL, backend, and frontend services
-- Backend deployed on Railway (persistent process, resolves Vercel Serverless BackgroundTasks limitation)
+- Backend deployed on Render (free tier, Docker runtime, persistent process)
+- Database hosted on Neon Serverless PostgreSQL (free tier, permanent)
+- UptimeRobot monitors `GET /system/health` every 5 minutes to prevent Render free-tier spin-down
 - Alembic migrations run automatically on backend startup
+- SQLAlchemy connection pool configured with `pool_pre_ping` and `pool_recycle=300` for Neon compatibility
 
 ## Planned Features
 
