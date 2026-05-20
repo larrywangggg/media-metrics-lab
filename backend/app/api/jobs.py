@@ -53,7 +53,6 @@ def get_jobs(
 def get_job(
     job_id: UUID,
     db: Session = Depends(get_db),
-    _user_id: int = Depends(get_current_user_id),
 ):
     data = get_job_detail(db, job_id=job_id)
     if not data:
@@ -66,7 +65,6 @@ def get_results(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    _user_id: int = Depends(get_current_user_id),
 ):
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
