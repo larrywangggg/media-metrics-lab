@@ -34,7 +34,11 @@ def _resolve_database_url() -> str:
     )
 
 
-engine = create_engine(_resolve_database_url())
+engine = create_engine(
+    _resolve_database_url(),
+    pool_pre_ping=True,   # test connection before use, discard if dead
+    pool_recycle=300,     # recycle connections every 5 min (before Neon kills them)
+)
 
 SessionLocal = sessionmaker(
     bind=engine,
