@@ -125,28 +125,34 @@ tiktok,https://www.tiktok.com/@user/video/xxxx
 
 ```bash
 cd backend
+createdb -O app mediametrics_test   # once, if your role cannot create databases
 uv sync
-PYTHONPATH=. uv run pytest -q
+uv run pytest -q
 ```
 
-Current test coverage focuses on:
+Tests run against a real PostgreSQL database set by `TEST_DATABASE_URL`
+(default `postgresql+psycopg://app:app@localhost:5432/mediametrics_test`; it can also go in `backend/.env`).
+`test/conftest.py` migrates it once per session and truncates all tables before each test.
+It refuses any database whose name does not contain `test`, and it forces `YOUTUBE_FETCHER_IMPL=stub` so tests never hit the network.
 
-- Upload parsing for CSV/XLSX
-- Row validation output shape
-- Invalid file-type rejection
+Coverage:
+
+- Upload parsing, row validation, and file-type rejection (`test_upload_parsing.py`)
+- Registration, password hashing, unique usernames, login, and token checks (`test_auth.py`)
+- Job lifecycle, background processing, failure handling, pagination, CSV export, FK cascade (`test_jobs.py`)
+- Schema-vs-model drift and downgrade/upgrade round trip (`test_migrations.py`)
 
 ## CI Coverage
 
 In `.github/workflows/ci.yml`, the backend CI job:
 
-- Boots PostgreSQL service container
+- Boots a PostgreSQL service container with a `mediametrics_test` database
 - Installs dependencies with `uv sync --frozen --all-groups`
-- Runs migrations (`alembic upgrade head`)
-- Executes `pytest -q`
+- Executes `pytest -q`, which applies migrations before the first test
 
 Goal:
 
-- Catch parsing/validation regressions before merge
+- Catch parsing, persistence, and migration regressions before merge
 - Ensure migrations and tests run in a clean environment
 
 # Implemented Features
@@ -165,4 +171,3 @@ Goal:
 - Production-grade TikTok/Instagram fetchers (currently stubs)
 - Distributed queue + retries/backoff (currently in-process background tasks)
 - Authentication and tenant/user isolation
-- Broader backend integration coverage beyond upload parsing

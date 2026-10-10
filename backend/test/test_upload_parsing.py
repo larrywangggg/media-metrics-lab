@@ -6,31 +6,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
-
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "validation"
 
-# Register a test user once and obtain a token for authenticated requests.
-_register_resp = client.post(
-    "/auth/register",
-    json={"username": "ci_test_user", "password": "ci_test_pass"},
-)
-# 201 on first run, 409 if the DB already has this user (re-runs) — both fine.
-if _register_resp.status_code == 409:
-    _login_resp = client.post(
-        "/auth/login",
-        json={"username": "ci_test_user", "password": "ci_test_pass"},
-    )
-    _TOKEN = _login_resp.json()["access_token"]
-else:
-    _TOKEN = _register_resp.json()["access_token"]
 
-_AUTH_HEADERS = {"Authorization": f"Bearer {_TOKEN}"}
-
-
-def _post_file(path: Path) -> dict[str, Any]:
+def _post_file(client: TestClient, path: Path) -> dict[str, Any]:
     assert path.exists(), f"Fixture not found: {path}"
     with path.open("rb") as f:
         # field name must match your endpoint param: upload(file: UploadFile = File(...))
@@ -40,8 +19,8 @@ def _post_file(path: Path) -> dict[str, Any]:
     return resp.json()
 
 
-def _get_job(job_id: str) -> dict[str, Any]:
-    resp = client.get(f"/jobs/{job_id}", headers=_AUTH_HEADERS)
+def _get_job(client: TestClient, job_id: str) -> dict[str, Any]:
+    resp = client.get(f"/jobs/{job_id}")
     assert resp.status_code == 200, resp.text
     return resp.json()
 
@@ -79,8 +58,8 @@ def _assert_common_shape(payload: dict[str, Any]) -> None:
     "filename",
     ["valid_csv.csv", "valid_xlsx.xlsx"],
 )
-def test_upload_valid_files_returns_all_valid(filename: str) -> None:
-    payload = _post_file(FIXTURES_DIR / filename)
+def test_upload_valid_files_returns_all_valid(client: TestClient, filename: str) -> None:
+    payload = _post_file(client, FIXTURES_DIR / filename)
     _assert_common_shape(payload)
     assert payload["filename"] == filename
 
@@ -90,7 +69,7 @@ def test_upload_valid_files_returns_all_valid(filename: str) -> None:
     assert payload["invalid_preview"] == []
 
     # DB schema consistency: jobs.source_filename should be persisted and queryable.
-    job = _get_job(payload["job_id"])
+    job = _get_job(client, payload["job_id"])
     assert job["filename"] == filename
 
 
@@ -98,8 +77,8 @@ def test_upload_valid_files_returns_all_valid(filename: str) -> None:
     "filename",
     ["invalid_csv.csv", "invalid_xlsx.xlsx"],
 )
-def test_upload_invalid_files_reports_errors(filename: str) -> None:
-    payload = _post_file(FIXTURES_DIR / filename)
+def test_upload_invalid_files_reports_errors(client: TestClient, filename: str) -> None:
+    payload = _post_file(client, FIXTURES_DIR / filename)
     _assert_common_shape(payload)
     assert payload["filename"] == filename
 
@@ -112,7 +91,7 @@ def test_upload_invalid_files_reports_errors(filename: str) -> None:
     for row in payload["invalid_preview"]:
         assert len(row["error_messages"]) >= 1
 
-    job = _get_job(payload["job_id"])
+    job = _get_job(client, payload["job_id"])
     assert job["filename"] == filename
 
 
@@ -120,8 +99,8 @@ def test_upload_invalid_files_reports_errors(filename: str) -> None:
     "filename",
     ["mixed_csv.csv", "mixed_xlsx.xlsx"],
 )
-def test_upload_mixed_files_splits_valid_and_invalid(filename: str) -> None:
-    payload = _post_file(FIXTURES_DIR / filename)
+def test_upload_mixed_files_splits_valid_and_invalid(client: TestClient, filename: str) -> None:
+    payload = _post_file(client, FIXTURES_DIR / filename)
     _assert_common_shape(payload)
     assert payload["filename"] == filename
 
@@ -133,20 +112,17 @@ def test_upload_mixed_files_splits_valid_and_invalid(filename: str) -> None:
     for row in payload["invalid_preview"]:
         assert len(row["error_messages"]) >= 1
 
-    job = _get_job(payload["job_id"])
+    job = _get_job(client, payload["job_id"])
     assert job["filename"] == filename
 
 
-def test_upload_rejects_non_csv_xlsx() -> None:
+def test_upload_rejects_non_csv_xlsx(client: TestClient, tmp_path: Path) -> None:
     # If you implemented file type validation, this should be 415 or 400.
     # If you didn’t, feel free to delete this test.
-    dummy = FIXTURES_DIR / "dummy.txt"
+    dummy = tmp_path / "dummy.txt"
     dummy.write_text("hello", encoding="utf-8")
 
-    try:
-        with dummy.open("rb") as f:
-            files = {"file": (dummy.name, f, "text/plain")}
-            resp = client.post("/jobs/upload", files=files)
-        assert resp.status_code in (400, 415, 422), resp.text
-    finally:
-        dummy.unlink(missing_ok=True)
+    with dummy.open("rb") as f:
+        files = {"file": (dummy.name, f, "text/plain")}
+        resp = client.post("/jobs/upload", files=files)
+    assert resp.status_code in (400, 415, 422), resp.text

@@ -164,18 +164,25 @@ The current testing and CI focus is protecting the main workflow from regression
 
 ### What is covered locally
 
-Current backend `pytest` coverage includes:
+Backend `pytest` tests run against a real PostgreSQL database and cover:
 
-- CSV/XLSX upload parsing
-- Required-column and row-level validation (`platform` + `url`)
-- Invalid file-type rejection
+- CSV/XLSX upload parsing, row-level validation (`platform` + `url`), and file-type rejection
+- Auth: registration, bcrypt hashing, duplicate usernames (API and unique index), login, token checks
+- Job lifecycle: upload persistence, background run to `completed`, crash mid-run to `failed`, 404/409 cases
+- Result pagination, job listing order, CSV export, and `ON DELETE CASCADE` from jobs to results
+- Migrations: migrated schema matches the ORM models, and a full downgrade/upgrade round trip
+
+Tests use a dedicated database: `TEST_DATABASE_URL`, default `postgresql+psycopg://app:app@localhost:5432/mediametrics_test`.
+The suite creates it if the role is allowed to, runs `alembic upgrade head` once, and truncates every table before each test.
+It refuses to run unless the database name contains `test`, so it can never wipe dev or production data.
 
 Run locally:
 
 ```bash
 cd backend
+createdb -O app mediametrics_test   # once, if your role cannot create databases
 uv sync
-PYTHONPATH=. uv run pytest -q
+uv run pytest -q
 ```
 
 ### What CI achieves
@@ -184,9 +191,9 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on PRs and pushes to `main`.
 
 Backend Job:
 
-- Starts a PostgreSQL service container
-- Installs dependencies and runs `alembic upgrade head`
-- Runs `pytest -q`
+- Starts a PostgreSQL service container (`mediametrics_test`)
+- Installs dependencies
+- Runs `pytest -q` (the test suite applies migrations itself)
 
 Frontend Job:
 
@@ -196,7 +203,7 @@ Frontend Job:
 
 CI goals:
 
-- Catch backend parsing regressions before merge
+- Catch backend parsing, persistence, and migration regressions before merge
 - Ensure frontend code passes lint and remains buildable
 - Reduce local-vs-CI environment mismatches
 
@@ -239,6 +246,6 @@ CI goals:
 - Instagram Graph API fetcher (pending API key)
 - Production-grade TikTok fetcher (currently stub)
 - Queued execution + retry strategy (e.g., Redis/Celery)
-- Broader automated tests (backend integration tests, frontend E2E)
+- Frontend E2E tests
 - Observability improvements (structured logs, alerts, performance metrics)
 - Deployment hardening (release and rollback strategy)
